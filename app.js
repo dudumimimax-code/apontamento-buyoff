@@ -246,11 +246,13 @@
     });
     $('foto-cont').textContent = processandoFotos ? 'Preparando foto…' : fotos.length + ' de ' + MAX_FOTOS;
     var cheio = processandoFotos || fotos.length >= MAX_FOTOS;
-    $('foto-inp').disabled = cheio;
-    $('foto-add').classList.toggle('off', cheio);
-    $('foto-add').setAttribute('aria-disabled', cheio ? 'true' : 'false');
+    [['foto-cam', 'foto-cam-btn'], ['foto-inp', 'foto-add']].forEach(function (p) {
+      $(p[0]).disabled = cheio;
+      $(p[1]).classList.toggle('off', cheio);
+      $(p[1]).setAttribute('aria-disabled', cheio ? 'true' : 'false');
+    });
   }
-  $('foto-inp').addEventListener('change', function () {
+  function recebeFotos() {
     var inp = this, arqs = Array.prototype.slice.call(inp.files || [], 0, MAX_FOTOS - fotos.length);
     try { inp.value = ''; } catch (e) {}
     if (!arqs.length) return;
@@ -261,7 +263,9 @@
           function () { mostraErro('Não foi possível usar uma das fotos. Tente tirar de novo.'); });
       });
     }, Promise.resolve()).then(function () { processandoFotos = false; idAtual = null; renderFotos(); });
-  });
+  }
+  $('foto-cam').addEventListener('change', recebeFotos);
+  $('foto-inp').addEventListener('change', recebeFotos);
 
   function mostraErro(msg) { var e = $('erro'); e.textContent = msg || ''; e.hidden = !msg; if (msg) e.scrollIntoView({block: 'center'}); }
 

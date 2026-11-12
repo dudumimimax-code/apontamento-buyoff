@@ -88,7 +88,7 @@ Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de en
 
 ## Fotos nos lançamentos
 
-- O operador pode anexar **até 3 fotos (opcional)** por lançamento, pela câmera ou galeria do celular.
+- O operador pode anexar **até 3 fotos (opcional)** por lançamento, pelo botão **Tirar foto** (abre a câmera traseira) ou **Galeria**.
 - O próprio celular reduz cada foto para no máximo 1280 px (~200-400 KB) e remove os dados EXIF (como localização GPS) antes de enviar.
 - As fotos ficam na pasta **Buy Off - Fotos** do Drive do dono da planilha (pasta privada), com nome `data_setor_turno_id_n.jpg`, e o link de cada uma na coluna **Fotos** da planilha.
 - Na aba Controle aparece só a quantidade de fotos; para ver as imagens, abra os links na planilha (exige acesso ao Drive).
