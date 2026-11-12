@@ -15,6 +15,7 @@
  *    semana, peças ruins e refugo; não confia no que vem do navegador.
  *  - Textos que começam com = + - @ são gravados como texto (evita injeção de fórmula).
  *  - Limite de lançamentos por janela de 10 minutos e trava contra gravação simultânea.
+ *  - Fotos (opcionais, até 3): só JPEG, tamanho limitado, salvas numa pasta PRIVADA do Drive.
  */
 
 var ABA = 'Lançamentos';
@@ -47,7 +48,10 @@ var DEFEITOS = [
 var TURNOS = ['Dia', 'Noite'];
 
 var LIMITES = {
-  corpo: 8000,            // tamanho máximo da requisição (caracteres)
+  corpo: 2500000,         // tamanho máximo da requisição (caracteres; comporta 3 fotos)
+  fotos: 3,               // fotos por lançamento
+  fotoBytes: 600000,      // tamanho máximo de cada foto (~600 KB)
+  fotos10min: 300,        // teto global de fotos por 10 minutos
   operador: 60,
   obs: 500,
   producao: 100000,
@@ -62,22 +66,24 @@ var LIMITES = {
 var COL = { criado: 0, id: 1, data: 2, ano: 3, semana: 4, setor: 5, turno: 6, operador: 7,
             producao: 8, ciclo: 9, ruins: 10, refugo: 11, def0: 12 };
 COL.obs = COL.def0 + DEFEITOS.length;
+COL.fotos = COL.obs + 1;
 
 function cabecalho_() {
   return ['Registrado em', 'ID', 'Data', 'Ano', 'Semana', 'Setor', 'Turno', 'Operador',
           'Produção', 'Ciclo (min)', 'Peças ruins', 'Refugo %']
     .concat(DEFEITOS.map(function (d) { return d[0] + ' ' + d[1]; }))
-    .concat(['Observação']);
+    .concat(['Observação', 'Fotos']);
 }
 
 // ---------------------------------------------------------------------------
 // Funções para rodar manualmente no editor
 // ---------------------------------------------------------------------------
 
-/** Rode uma vez: cria a aba, o cabeçalho e as duas chaves. */
+/** Rode uma vez (e de novo após atualizar o código): cria a aba, as chaves e a pasta de fotos. */
 function setup() {
   SpreadsheetApp.getActiveSpreadsheet().setSpreadsheetTimeZone(TZ);
   aba_();
+  Logger.log('Pasta das fotos (privada): ' + pastaFotos_().getUrl());
   var props = PropertiesService.getScriptProperties();
   ['CHAVE_LANCAMENTO', 'CHAVE_CONTROLE'].forEach(function (k) {
     if (!props.getProperty(k)) props.setProperty(k, novaChave_());
@@ -145,19 +151,23 @@ function lancar_(dados) {
   var r = v.registro;
 
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) return resp_({ ok: false, erro: 'ocupado' });
+  if (!lock.tryLock(30000)) return resp_({ ok: false, erro: 'ocupado' });
   try {
     var cache = CacheService.getScriptCache();
     var janela = 'cnt:' + Math.floor(Date.now() / 600000);
     var n = Number(cache.get(janela) || 0);
+    var nf = Number(cache.get('f' + janela) || 0);
 
     var aba = aba_();
     var busca = procurar_(aba, r);
     if (busca.repetido) return resp_({ ok: true, repetido: true, duplicados: 0 }); // reenvio do mesmo lançamento
     if (n >= LIMITES.lancamentos10min) return resp_({ ok: false, erro: 'limite' });
+    if (r.fotos.length && nf + r.fotos.length > LIMITES.fotos10min) return resp_({ ok: false, erro: 'limite' });
 
-    aba.appendRow(linha_(r));
+    var links = salvarFotos_(r);
+    aba.appendRow(linha_(r, links));
     cache.put(janela, String(n + 1), 700);
+    if (r.fotos.length) cache.put('f' + janela, String(nf + r.fotos.length), 700);
     return resp_({ ok: true, duplicados: busca.duplicados });
   } finally {
     lock.releaseLock();
@@ -217,11 +227,45 @@ function validar_(d) {
   var obs = texto_(d.obs, LIMITES.obs) || '';
   var w = semanaIso_(y, mo, dd);
 
+  var fotos = [];
+  if (d.fotos !== undefined && d.fotos !== null) {
+    if (!Array.isArray(d.fotos) || d.fotos.length > LIMITES.fotos) return { erro: 'Máximo de ' + LIMITES.fotos + ' fotos por lançamento.' };
+    var maxB64 = Math.ceil(LIMITES.fotoBytes / 3) * 4;
+    for (var f = 0; f < d.fotos.length; f++) {
+      var b64 = d.fotos[f];
+      if (typeof b64 !== 'string' || b64.length < 100 || b64.length > maxB64 || !/^[A-Za-z0-9+\/]+={0,2}$/.test(b64)) return { erro: 'Foto ' + (f + 1) + ' inválida ou grande demais.' };
+      var bytes;
+      try { bytes = Utilities.base64Decode(b64); } catch (_) { return { erro: 'Foto ' + (f + 1) + ' inválida.' }; }
+      // assinatura de arquivo JPEG: FF D8 FF
+      if (bytes.length > LIMITES.fotoBytes || (bytes[0] & 255) !== 0xFF || (bytes[1] & 255) !== 0xD8 || (bytes[2] & 255) !== 0xFF) return { erro: 'Foto ' + (f + 1) + ' não é uma imagem JPEG válida.' };
+      fotos.push(bytes);
+    }
+  }
+
   return { registro: { id: id, setor: setor, operador: operador, data: data, ano: w.ano, semana: w.sem,
-    turno: turno, producao: producao, ciclo: ciclo, defeitos: defeitos, ruins: ruins, obs: obs } };
+    turno: turno, producao: producao, ciclo: ciclo, defeitos: defeitos, ruins: ruins, obs: obs, fotos: fotos } };
 }
 
-function linha_(r) {
+/** Salva as fotos na pasta privada e devolve os links (um por linha). */
+function salvarFotos_(r) {
+  if (!r.fotos.length) return '';
+  var pasta = pastaFotos_();
+  return r.fotos.map(function (bytes, i) {
+    var nome = r.data + '_' + r.setor + '_' + r.turno + '_' + r.id.slice(0, 8) + '_' + (i + 1) + '.jpg';
+    return pasta.createFile(Utilities.newBlob(bytes, 'image/jpeg', nome)).getUrl();
+  }).join('\n');
+}
+
+function pastaFotos_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('FOTOS_PASTA_ID');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (_) {} }
+  var pasta = DriveApp.createFolder('Buy Off - Fotos');
+  props.setProperty('FOTOS_PASTA_ID', pasta.getId());
+  return pasta;
+}
+
+function linha_(r, links) {
   return [
     new Date(),
     r.id,
@@ -236,7 +280,7 @@ function linha_(r) {
     r.ruins,
     r.producao > 0 ? r.ruins / r.producao : ''
   ].concat(DEFEITOS.map(function (x) { return r.defeitos[x[0]] || ''; }))
-   .concat([seguro_(r.obs)]);
+   .concat([seguro_(r.obs), links || '']);
 }
 
 /** Procura o mesmo ID (reenvio) e conta lançamentos do mesmo setor/data/turno nas últimas 1000 linhas. */
@@ -288,7 +332,8 @@ function listar_() {
       cicloMin: isFinite(ciclo) ? ciclo : null,
       ruins: Number(l[COL.ruins]) || 0,
       defeitos: def,
-      obs: String(l[COL.obs] || '')
+      obs: String(l[COL.obs] || ''),
+      fotos: String(l[COL.fotos] || '').split('\n').filter(function (u) { return /^https:\/\//.test(u); }).length
     });
   });
   regs.reverse(); // mais recentes primeiro
@@ -310,6 +355,9 @@ function aba_() {
     aba.getRange('C:C').setNumberFormat('dd/MM/yyyy');
     aba.getRange('L:L').setNumberFormat('0.0%');
   }
+  // planilhas criadas antes das fotos: acrescenta o título da coluna nova
+  var celFotos = aba.getRange(1, COL.fotos + 1);
+  if (celFotos.getValue() === '') celFotos.setValue('Fotos').setFontWeight('bold');
   return aba;
 }
 

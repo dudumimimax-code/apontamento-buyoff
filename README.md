@@ -86,6 +86,19 @@ Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de en
 2. No Controle, toque em **Atualizar** e veja o lançamento.
 3. Apague a linha de teste direto na planilha.
 
+## Fotos nos lançamentos
+
+- O operador pode anexar **até 3 fotos (opcional)** por lançamento, pela câmera ou galeria do celular.
+- O próprio celular reduz cada foto para no máximo 1280 px (~200-400 KB) e remove os dados EXIF (como localização GPS) antes de enviar.
+- As fotos ficam na pasta **Buy Off - Fotos** do Drive do dono da planilha (pasta privada), com nome `data_setor_turno_id_n.jpg`, e o link de cada uma na coluna **Fotos** da planilha.
+- Na aba Controle aparece só a quantidade de fotos; para ver as imagens, abra os links na planilha (exige acesso ao Drive).
+
+### Atualizar um servidor que já estava publicado sem fotos
+
+1. Cole o `Code.gs` novo no editor do Apps Script (substituindo tudo) e salve.
+2. Rode a função **`setup`** de novo e autorize o novo acesso ao **Google Drive**. As chaves não mudam; o log mostra o link da pasta de fotos.
+3. **Implantar > Gerenciar implantações > ✏️ editar > Versão: Nova versão > Implantar.** A URL continua a mesma.
+
 ## Usando os dados no Excel
 
 - **Download manual:** na planilha, **Arquivo > Fazer download > Microsoft Excel (.xlsx)**.
@@ -117,6 +130,9 @@ Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de en
 | Dados adulterados (números negativos, setor inventado, ruins > produção, data absurda) | O servidor revalida tudo e **recalcula** semana, peças ruins e refugo. Lista fechada de setores (só os 3 do piloto), turnos e códigos Q. Datas só de até 90 dias atrás e 1 dia à frente. |
 | Injeção de fórmula na planilha/Excel (ex.: operador `=IMPORTXML(...)`) | Textos que começam com `= + - @` são gravados como texto. O CSV exportado aplica a mesma regra. |
 | XSS (código malicioso digitado num campo aparecer no Controle) | Tudo é exibido como texto puro (`textContent`), nunca como HTML. Política de Segurança de Conteúdo (CSP) só permite scripts do próprio site e conexões com o Google. |
+| Fotos maliciosas ou enormes | O servidor só aceita até 3 arquivos JPEG (verifica a assinatura do arquivo), de até 600 KB cada, com teto de 300 fotos a cada 10 minutos. Nomes dos arquivos são montados só com campos já validados. |
+| Fotos expostas na internet | A pasta do Drive é privada (não é compartilhada por link). O site e a aba Controle nunca mostram as imagens. |
+| Localização do celular embutida na foto | A foto é recodificada no celular antes do envio, o que descarta os dados EXIF (GPS, modelo do aparelho). |
 | Lançamento duplicado por internet ruim (clicar duas vezes, reenviar) | Cada lançamento tem um ID único; reenvio do mesmo ID não grava de novo. Aviso quando já existe lançamento do mesmo setor/data/turno. |
 | Enxurrada de envios | Teto de 300 gravações a cada 10 minutos e limite de tamanho por requisição. |
 | Vazamento de detalhes técnicos | Erros internos voltam só como `interno`; o detalhe fica no log do Apps Script. |
@@ -127,6 +143,7 @@ Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de en
 1. **Quem tiver a foto do QR code consegue lançar.** É o preço de não exigir login no chão de fábrica. Se o QR vazar, rode `trocarChaves` e reimprima. Para lançar só com login, a alternativa é mudar o acesso para "Qualquer pessoa da [empresa]" (exige Google Workspace na empresa).
 2. **Repositório público mostra os nomes dos operadores** (lista de sugestões em `app.js`) e o código. Se isso for um problema, apague a lista `ops` (o campo continua livre) ou use repositório privado (GitHub Pages privado exige plano pago).
 3. **LGPD:** a planilha guarda nomes de funcionários ligados à produção e ao refugo. Avise a equipe sobre o registro, compartilhe a planilha só com quem precisa e evite conta pessoal de Gmail: os dados da empresa ficariam numa conta sua. Confirme com o James/TI qual conta usar.
-4. **O dono da planilha é o ponto de controle.** O script roda com as permissões dele. Ative a verificação em duas etapas nessa conta e não compartilhe a planilha como "qualquer pessoa com o link".
-5. **GitHub Pages não permite cabeçalhos HTTP próprios** (ex.: proibir a página de ser embutida em outro site). O risco é baixo aqui, porque não há botão perigoso de um clique.
-6. **Rede da fábrica:** confirme com o TI que os aparelhos acessam `github.io`, `script.google.com` e `script.googleusercontent.com`.
+4. **Fotos com pessoas:** oriente a equipe a fotografar só a peça. Rostos de funcionários em fotos guardadas são dado pessoal (LGPD).
+5. **O dono da planilha é o ponto de controle.** O script roda com as permissões dele. Ative a verificação em duas etapas nessa conta e não compartilhe a planilha como "qualquer pessoa com o link".
+6. **GitHub Pages não permite cabeçalhos HTTP próprios** (ex.: proibir a página de ser embutida em outro site). O risco é baixo aqui, porque não há botão perigoso de um clique.
+7. **Rede da fábrica:** confirme com o TI que os aparelhos acessam `github.io`, `script.google.com` e `script.googleusercontent.com`.

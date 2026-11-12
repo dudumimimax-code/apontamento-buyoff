@@ -72,11 +72,11 @@
   // ---------- Comunicação com o Apps Script ----------
   function configurado() { return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(ENDPOINT); }
 
-  function api(acao, extra) {
+  function api(acao, extra, tempoMs) {
     if (!configurado()) return Promise.reject({erro: 'nao_configurado'});
     var corpo = {acao: acao}; for (var k in extra) corpo[k] = extra[k];
     var ctrl = ('AbortController' in window) ? new AbortController() : null;
-    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 25000) : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, tempoMs || 25000) : null;
     // text/plain evita o "preflight" de CORS, que o Apps Script não responde.
     return fetch(ENDPOINT, {
       method: 'POST', body: JSON.stringify(corpo), headers: {'Content-Type': 'text/plain;charset=utf-8'},
@@ -110,6 +110,8 @@
   var somenteLeitura = false, turnoTocado = false, salvando = false;
   var chaveLanc = guardaGet('localStorage', LS_LANC);
   var chaveCtrl = guardaGet('sessionStorage', SS_CTRL);
+  var MAX_FOTOS = 3, FOTO_LADO = 1280, FOTO_MAX_BYTES = 450000;
+  var fotos = [], processandoFotos = false; // fotos já comprimidas (data URL JPEG)
   var idAtual = null; // identifica o lançamento; reenvio após falha de rede não duplica
   if (!chaveValida(chaveLanc)) chaveLanc = null;
   if (!chaveValida(chaveCtrl)) chaveCtrl = null;
@@ -211,6 +213,54 @@
     $('setor-lock').hidden = true; $('setor-label').hidden = false; selSetor.focus();
   });
 
+  // ---------- Fotos (opcionais) ----------
+  function lerArquivo(file) {
+    return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(file); });
+  }
+  function carregaImg(src) {
+    return new Promise(function (res, rej) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = rej; im.src = src; });
+  }
+  function bytesDataUrl(u) { return Math.floor((u.length - u.indexOf(',') - 1) * 3 / 4); }
+  // Reduz para no máximo 1280 px e recodifica em JPEG (~200-400 KB). Também remove os dados EXIF (GPS etc.).
+  function comprime(file) {
+    return lerArquivo(file).then(carregaImg).then(function (im) {
+      var w = im.naturalWidth || im.width, hh = im.naturalHeight || im.height;
+      if (!w || !hh) throw new Error('imagem');
+      var esc = Math.min(1, FOTO_LADO / Math.max(w, hh));
+      var c = document.createElement('canvas'); c.width = Math.round(w * esc); c.height = Math.round(hh * esc);
+      var ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(im, 0, 0, c.width, c.height);
+      var qs = [0.75, 0.6, 0.45];
+      for (var i = 0; i < qs.length; i++) {
+        var u = c.toDataURL('image/jpeg', qs[i]);
+        if (u.indexOf('data:image/jpeg;base64,') === 0 && bytesDataUrl(u) <= FOTO_MAX_BYTES) return u;
+      }
+      throw new Error('grande');
+    });
+  }
+  function renderFotos() {
+    var box = $('fotos'); box.textContent = '';
+    fotos.forEach(function (u, i) {
+      var rm = h('button', {type: 'button', 'aria-label': 'Remover foto ' + (i + 1)}, '×');
+      rm.addEventListener('click', function () { fotos.splice(i, 1); idAtual = null; renderFotos(); });
+      box.appendChild(h('div', {class: 'foto'}, h('img', {src: u, alt: 'Foto ' + (i + 1)}), rm));
+    });
+    $('foto-cont').textContent = processandoFotos ? 'Preparando foto…' : fotos.length + ' de ' + MAX_FOTOS;
+    $('foto-add').disabled = processandoFotos || fotos.length >= MAX_FOTOS;
+  }
+  $('foto-add').addEventListener('click', function () { $('foto-inp').click(); });
+  $('foto-inp').addEventListener('change', function () {
+    var inp = this, arqs = Array.prototype.slice.call(inp.files || [], 0, MAX_FOTOS - fotos.length);
+    try { inp.value = ''; } catch (e) {}
+    if (!arqs.length) return;
+    processandoFotos = true; renderFotos(); mostraErro('');
+    arqs.reduce(function (p, f) {
+      return p.then(function () {
+        return comprime(f).then(function (u) { if (fotos.length < MAX_FOTOS) fotos.push(u); },
+          function () { mostraErro('Não foi possível usar uma das fotos. Tente tirar de novo.'); });
+      });
+    }, Promise.resolve()).then(function () { processandoFotos = false; idAtual = null; renderFotos(); });
+  });
+
   function mostraErro(msg) { var e = $('erro'); e.textContent = msg || ''; e.hidden = !msg; if (msg) e.scrollIntoView({block: 'center'}); }
 
   $('form').addEventListener('submit', function (ev) {
@@ -224,14 +274,18 @@
     if (!w) return mostraErro('Informe a data.');
     if (p === null || p < 0) return mostraErro('Informe a produção total, mesmo que seja zero.');
     if (ruins > p) return mostraErro('As peças ruins (' + ruins + ') passam da produção total (' + p + '). Confira os números.');
+    if (processandoFotos) return mostraErro('Aguarde a foto terminar de carregar.');
     var ciclo = parseFloat($('ciclo').value);
     if (!idAtual) idAtual = novoId();
     var dados = {id: idAtual, setor: setor.id, operador: op, data: data, turno: turnoAtual(), producao: p,
-      ciclo: isNaN(ciclo) ? null : ciclo, defeitos: def, obs: $('obs').value.trim()};
+      ciclo: isNaN(ciclo) ? null : ciclo, defeitos: def, obs: $('obs').value.trim(),
+      fotos: fotos.map(function (u) { return u.slice(u.indexOf(',') + 1); })};
+    var nFotos = dados.fotos.length;
 
-    salvando = true; $('enviar').disabled = true; $('enviar').textContent = 'Registrando…';
-    api('lancar', {chave: chaveLanc, dados: dados}).then(function (j) {
+    salvando = true; $('enviar').disabled = true; $('enviar').textContent = nFotos ? 'Enviando fotos…' : 'Registrando…';
+    api('lancar', {chave: chaveLanc, dados: dados}, nFotos ? 120000 : 25000).then(function (j) {
       var txt = setor.nome + ' · ' + brData(data) + ' · turno ' + dados.turno + ': ' + nfmt(p) + ' peças, ' + nfmt(ruins) + ' ruins (' + pct(ruins, p) + ').';
+      if (nFotos) txt += ' ' + nFotos + (nFotos > 1 ? ' fotos anexadas.' : ' foto anexada.');
       if (j.repetido) txt += ' (Este lançamento já tinha chegado na primeira tentativa.)';
       else if (j.duplicados > 0) txt += ' Atenção: já havia ' + nfmt(j.duplicados) + ' lançamento(s) deste setor nesta data e turno.';
       $('done-txt').textContent = txt;
@@ -249,6 +303,7 @@
   $('novo').addEventListener('click', function () {
     DEFEITOS.forEach(function (d) { $('q-' + d[0]).value = ''; });
     $('producao').value = ''; $('ciclo').value = ''; $('obs').value = '';
+    fotos = []; renderFotos();
     if (!turnoTocado) setTurno(turnoSugerido());
     atualizaTotais(); verificaDuplicado();
     $('done').hidden = true; $('form').hidden = false; window.scrollTo(0, 0);
@@ -340,7 +395,8 @@
       tb.appendChild(h('tr', null,
         h('td', null, brData(r.data)), h('td', null, String(r.setorNome || r.setor || '')), h('td', null, String(r.turno || '')),
         h('td', null, String(r.operador || '')), h('td', {class: 'num'}, nfmt(r.producao)), h('td', {class: 'num'}, nfmt(r.ruins)),
-        h('td', {class: 'num'}, pct(Number(r.ruins) || 0, Number(r.producao) || 0))));
+        h('td', {class: 'num'}, pct(Number(r.ruins) || 0, Number(r.producao) || 0)),
+        h('td', {class: 'num'}, Number(r.fotos) > 0 ? nfmt(r.fotos) : '-')));
     });
     var tv = $('tvazio');
     if (!lista.length) {
@@ -355,7 +411,7 @@
   $('exportar').addEventListener('click', function () {
     var lista = filtrados();
     var head = ['Data','Ano','Semana','Setor','Turno','Operador','Produção','Ciclo (min)','Peças ruins','Refugo %']
-      .concat(DEFEITOS.map(function (d) { return d[0] + ' ' + d[1]; }), ['Observação', 'Registrado em']);
+      .concat(DEFEITOS.map(function (d) { return d[0] + ' ' + d[1]; }), ['Observação', 'Fotos', 'Registrado em']);
     function esc(v) {
       v = v == null ? '' : String(v);
       if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
@@ -367,7 +423,7 @@
       linhas.push([brData(r.data), r.ano, r.semana, r.setorNome || r.setor, r.turno, r.operador, r.producao,
         r.cicloMin == null ? '' : String(r.cicloMin).replace('.', ','), r.ruins,
         r.producao > 0 ? (r.ruins / r.producao * 100).toFixed(1).replace('.', ',') : '']
-        .concat(DEFEITOS.map(function (x) { return d[x[0]] || ''; }), [r.obs || '', r.criadoEm || ''])
+        .concat(DEFEITOS.map(function (x) { return d[x[0]] || ''; }), [r.obs || '', Number(r.fotos) || 0, r.criadoEm || ''])
         .map(esc).join(';'));
     });
     var blob = new Blob(['\ufeff' + linhas.join('\r\n')], {type: 'text/csv;charset=utf-8'});
