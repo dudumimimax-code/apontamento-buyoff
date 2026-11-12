@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://script.google.com https://script.googleusercontent.com; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Apontamento Buy Off</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#EDEFF2; --surface:#FFFFFF; --ink:#14202E; --muted:#5B6877; --line:#D3D9E0;
+  --brand:#17325C; --on-brand:#FFFFFF; --brand-soft:#E4EBF6;
+  --bad:#B42318; --bad-soft:#FDEBE9; --ok:#17744A; --ok-soft:#E3F4EB; --warn:#9A5B00; --warn-soft:#FFF3DC;
+  --focus:#2F6FDB;
+  --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1520; --surface:#162030; --ink:#E7ECF2; --muted:#98A6B8; --line:#273548;
+    --brand:#8FB2EE; --on-brand:#0B1522; --brand-soft:#1B2B45;
+    --bad:#F28B82; --bad-soft:#3A1E1F; --ok:#62C894; --ok-soft:#17301F; --warn:#F0B35F; --warn-soft:#37290F;
+    --focus:#7FB0FF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1520; --surface:#162030; --ink:#E7ECF2; --muted:#98A6B8; --line:#273548;
+  --brand:#8FB2EE; --on-brand:#0B1522; --brand-soft:#1B2B45;
+  --bad:#F28B82; --bad-soft:#3A1E1F; --ok:#62C894; --ok-soft:#17301F; --warn:#F0B35F; --warn-soft:#37290F;
+  --focus:#7FB0FF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;
+  padding-block:0 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:760px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+[hidden]{display:none !important}
+header.top{padding-block:20px 12px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-size:26px;line-height:1.15;margin:4px 0 14px;font-weight:600;text-wrap:balance}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;width:max-content;max-width:100%}
+.tabs button{border:0;background:transparent;padding:8px 18px;border-radius:7px;font-weight:500;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--brand);color:var(--on-brand)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px}
+.card h2{font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid .full{grid-column:1/-1}
+@media (max-width:520px){.grid{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:500;color:var(--muted);min-width:0}
+.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:500;color:var(--muted);min-width:0}
+.inp,select.inp,textarea.inp{width:100%;min-height:44px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:16px}
+textarea.inp{min-height:84px;resize:vertical}
+.inp:disabled{opacity:.75}
+.hint{font-size:12.5px;color:var(--muted)}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;min-height:44px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:500;color:var(--muted);background:var(--bg);padding:9px}
+.seg input:checked+label{background:var(--brand);color:var(--on-brand)}
+.seg input:focus-visible+label{outline:3px solid var(--focus);outline-offset:-3px}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px;font-weight:500;margin-top:8px}
+.chip button{border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-size:13px;padding:2px 6px}
+.note{border-radius:8px;padding:10px 12px;font-size:13.5px;margin-top:12px}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.bad{background:var(--bad-soft);color:var(--bad)}
+.note.ok{background:var(--ok-soft);color:var(--ok)}
+.defrow{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 6px;border-top:1px solid var(--line);border-radius:6px}
+.defrow:first-of-type{border-top:0}
+.defrow.on{background:var(--brand-soft)}
+.code{font-family:var(--mono);font-weight:500;font-size:14px}
+.desc{font-size:14px;min-width:0}
+.tag{display:inline-block;margin-left:6px;font-size:11px;padding:1px 6px;border-radius:99px;background:var(--warn-soft);color:var(--warn);white-space:nowrap}
+.step{display:flex;align-items:center;gap:4px}
+.step button{width:40px;height:40px;border:1px solid var(--line);background:var(--bg);border-radius:8px;font-size:20px;cursor:pointer;line-height:1}
+.step input{width:56px;height:40px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-family:var(--mono);font-size:16px;-moz-appearance:textfield}
+.step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.bar{position:sticky;bottom:0;margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 -6px 18px rgba(0,0,0,.06)}
+.tot{display:flex;gap:18px;align-items:baseline}
+.tot b{font-family:var(--mono);font-size:22px;font-weight:500}
+.tot .bad{color:var(--bad)}
+.tot small{display:block;font-size:11.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.btn{min-height:46px;padding:0 22px;border-radius:9px;border:0;background:var(--brand);color:var(--on-brand);font-weight:600;font-size:16px;cursor:pointer}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+.btn.small{min-height:36px;padding:0 14px;font-size:14px}
+.done h3{margin:0 0 6px;font-size:20px;color:inherit}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.row .f{flex:1 1 220px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.kpi small{display:block;font-size:11.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.kpi b{font-family:var(--mono);font-size:22px;font-weight:500}
+.kpi.bad b{color:var(--bad)}
+.par{display:grid;grid-template-columns:52px minmax(0,1fr) 84px;gap:10px;align-items:center;padding:5px 0;font-size:14px}
+.par .track{height:10px;background:var(--bg);border-radius:6px;overflow:hidden;margin-top:4px}
+.par .fill{height:100%;background:var(--bad);border-radius:6px}
+.par .n{text-align:right;font-family:var(--mono)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end}
+@media (max-width:560px){.filters{grid-template-columns:minmax(0,1fr)}}
+.empty{padding:22px 8px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+details summary{cursor:pointer;font-weight:500}
+.links{display:grid;gap:6px;margin-top:10px}
+.links div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.links code{font-family:var(--mono);font-size:12px;word-break:break-all;user-select:all;min-width:0}
+@media (prefers-reduced-motion:no-preference){.defrow,.btn{transition:background-color .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Ornare Móveis · Pintura</div>
+    <h1>Apontamento Buy Off</h1>
+    <div class="tabs" role="tablist" aria-label="Seções">
+      <button id="tab-form" role="tab" aria-selected="true" type="button">Lançar</button>
+      <button id="tab-ctrl" role="tab" aria-selected="false" type="button">Controle</button>
+    </div>
+  </header>
+
+  <div id="banner" class="note warn" hidden></div>
+
+  <main id="view-form">
+    <form id="form" novalidate autocomplete="off">
+      <section class="card" aria-labelledby="h-id">
+        <h2 id="h-id">Identificação</h2>
+        <div class="grid">
+          <div class="full">
+            <label class="f" for="setor" id="setor-label">Setor
+              <select id="setor" class="inp"></select>
+            </label>
+            <div id="setor-lock" class="chip" hidden><span id="setor-lock-txt"></span><button type="button" id="setor-unlock">trocar</button></div>
+          </div>
+          <label class="f" for="operador">Operador
+            <input id="operador" class="inp" list="ops" placeholder="Nome de quem lança" maxlength="60">
+            <datalist id="ops"></datalist>
+          </label>
+          <label class="f" for="data">Data
+            <input id="data" class="inp" type="date">
+          </label>
+          <div class="f">
+            <span id="turno-l">Turno</span>
+            <div class="seg" role="radiogroup" aria-labelledby="turno-l">
+              <input type="radio" name="turno" id="turno-dia" value="Dia"><label for="turno-dia">Dia</label>
+              <input type="radio" name="turno" id="turno-noite" value="Noite"><label for="turno-noite">Noite</label>
+            </div>
+            <span class="hint" id="turno-h">Sugerido pelo horário do envio. Pode trocar.</span>
+          </div>
+          <div class="f">
+            <span>Semana</span>
+            <div class="inp" id="semana">-</div>
+            <span class="hint">Calculada pela data.</span>
+          </div>
+        </div>
+        <div id="dup" class="note warn" hidden></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-prod">
+        <h2 id="h-prod">Produção</h2>
+        <div class="grid">
+          <label class="f" for="producao">Produção total (peças)
+            <input id="producao" class="inp" type="number" inputmode="numeric" min="0" max="100000" step="1" placeholder="0">
+          </label>
+          <label class="f" for="ciclo">Tempo de ciclo (min), opcional
+            <input id="ciclo" class="inp" type="number" inputmode="decimal" min="0" max="1440" step="any" placeholder="0">
+          </label>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-def">
+        <h2 id="h-def">Defeitos de qualidade</h2>
+        <p class="hint" style="margin:0 0 6px">Informe só a quantidade de cada código encontrado. Os campos vazios contam como zero.</p>
+        <div id="defeitos"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-obs">
+        <h2 id="h-obs">Observação</h2>
+        <label class="f" for="obs">Opcional
+          <textarea id="obs" class="inp" maxlength="500" placeholder="Algo que o controle precisa saber deste turno"></textarea>
+        </label>
+      </section>
+
+      <div id="erro" class="note bad" hidden role="alert"></div>
+
+      <div class="bar">
+        <div class="tot" aria-live="polite">
+          <div><small>Peças ruins</small><b id="tot-ruins" class="bad">0</b></div>
+          <div><small>Refugo</small><b id="tot-pct">-</b></div>
+        </div>
+        <button class="btn" id="enviar" type="submit">Registrar lançamento</button>
+      </div>
+    </form>
+
+    <section id="done" class="card done" hidden>
+      <div class="note ok" style="margin:0 0 12px"><h3>Lançamento registrado</h3><div id="done-txt"></div></div>
+      <button class="btn" id="novo" type="button">Novo lançamento</button>
+    </section>
+  </main>
+
+  <main id="view-ctrl" hidden>
+    <section class="card" id="login" aria-labelledby="h-login">
+      <h2 id="h-login">Acesso ao controle</h2>
+      <form id="login-form" class="row" autocomplete="off">
+        <label class="f" for="ctrl-chave">Chave de controle
+          <input id="ctrl-chave" class="inp" type="password" maxlength="64" autocomplete="off">
+        </label>
+        <button class="btn" type="submit">Entrar</button>
+      </form>
+      <p class="hint" style="margin:8px 0 0">A chave fica guardada só até fechar esta aba do navegador.</p>
+    </section>
+
+    <section class="card" id="filtros" aria-labelledby="h-fil" hidden>
+      <h2 id="h-fil">Filtros</h2>
+      <div class="filters">
+        <label class="f" for="f-sem">Semana<select id="f-sem" class="inp"></select></label>
+        <label class="f" for="f-setor">Setor<select id="f-setor" class="inp"></select></label>
+        <label class="f" for="f-turno">Turno
+          <select id="f-turno" class="inp"><option value="">Todos</option><option>Dia</option><option>Noite</option></select>
+        </label>
+        <button class="btn ghost small" id="exportar" type="button" hidden>Exportar CSV</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost small" id="atualizar" type="button">Atualizar</button>
+        <button class="btn ghost small" id="sair" type="button">Sair</button>
+      </div>
+    </section>
+    <div id="ctrl-msg" class="note" hidden></div>
+
+    <div id="ctrl-dados" hidden>
+      <div class="kpis">
+        <div class="kpi"><small>Lançamentos</small><b id="k-n">0</b></div>
+        <div class="kpi"><small>Produção</small><b id="k-prod">0</b></div>
+        <div class="kpi bad"><small>Peças ruins</small><b id="k-ruins">0</b></div>
+        <div class="kpi bad"><small>Refugo</small><b id="k-pct">-</b></div>
+      </div>
+
+      <section class="card" aria-labelledby="h-par">
+        <h2 id="h-par">Defeitos por código</h2>
+        <div id="pareto"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-reg">
+        <h2 id="h-reg">Lançamentos</h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Data</th><th>Setor</th><th>Turno</th><th>Operador</th><th class="num">Produção</th><th class="num">Ruins</th><th class="num">Refugo</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <div id="tvazio" class="empty"></div>
+        <p class="hint">Para corrigir ou excluir um lançamento, edite a linha direto na planilha.</p>
+      </section>
+
+      <section class="card">
+        <details>
+          <summary>Link do QR code</summary>
+          <p class="hint" style="margin:8px 0">Cole a chave de lançamento para gerar o link do QR code. Quem abrir o link ganha permissão para lançar e escolhe o setor no formulário.</p>
+          <form id="links-form" class="row" autocomplete="off">
+            <label class="f" for="link-chave">Chave de lançamento
+              <input id="link-chave" class="inp" type="password" maxlength="64" autocomplete="off">
+            </label>
+            <button class="btn ghost small" type="submit">Gerar link</button>
+          </form>
+          <div class="links" id="links"></div>
+        </details>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
