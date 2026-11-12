@@ -245,9 +245,11 @@
       box.appendChild(h('div', {class: 'foto'}, h('img', {src: u, alt: 'Foto ' + (i + 1)}), rm));
     });
     $('foto-cont').textContent = processandoFotos ? 'Preparando foto…' : fotos.length + ' de ' + MAX_FOTOS;
-    $('foto-add').disabled = processandoFotos || fotos.length >= MAX_FOTOS;
+    var cheio = processandoFotos || fotos.length >= MAX_FOTOS;
+    $('foto-inp').disabled = cheio;
+    $('foto-add').classList.toggle('off', cheio);
+    $('foto-add').setAttribute('aria-disabled', cheio ? 'true' : 'false');
   }
-  $('foto-add').addEventListener('click', function () { $('foto-inp').click(); });
   $('foto-inp').addEventListener('change', function () {
     var inp = this, arqs = Array.prototype.slice.call(inp.files || [], 0, MAX_FOTOS - fotos.length);
     try { inp.value = ''; } catch (e) {}
