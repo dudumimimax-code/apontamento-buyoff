@@ -69,16 +69,20 @@ var ENDPOINT = 'https://script.google.com/macros/s/AKfycb...xyz/exec';
 3. **Settings > Pages**: em *Build and deployment*, escolha **Deploy from a branch**, branch **main**, pasta **/ (root)**, e salve.
 4. Em 1 a 2 minutos o site sai em `https://SEU-USUARIO.github.io/apontamento-buyoff/`.
 
-## Passo 5 · Gerar o QR code (piloto: IBOTIC)
+## Passo 5 · Gerar o QR code (piloto: IBOTIC, Lixadeira de Bordo, Sputzz e Tagliabue)
 
 1. Abra o site e vá na aba **Controle**. Entre com a `CHAVE_CONTROLE`.
 2. Abra **Link do QR code**, cole a `CHAVE_LANCAMENTO` e clique em **Gerar link**.
 3. Copie o link e gere o QR code (ex.: no Chrome, menu ⋮ > *Compartilhar > Criar QR code*, que gera no aparelho, sem mandar o link a terceiros).
-4. Imprima e cole o QR na IBOTIC.
+4. Imprima e cole o mesmo QR nas 4 máquinas do piloto.
 
-Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de endereço. Como o piloto tem um só setor, a IBOTIC já vem fixa no formulário. O campo Operador sugere os nomes da IBOTIC, mas aceita qualquer nome digitado.
+Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de endereço. O operador escolhe o setor no formulário, e o campo Operador sugere os nomes daquele setor (aceita qualquer nome digitado).
 
-Os lançamentos da IBOTIC vão para a aba **Lançamentos IBOTIC** da planilha, criada sozinha no primeiro envio. A aba **Lançamentos** do piloto anterior (Lixação, Polimento e Tagliabue) fica intacta como histórico.
+Opcional: para um QR com o setor já escolhido, acrescente o id do setor logo depois do `#` no link gerado: `#ibotic&k=...`, `#lixadeira&k=...`, `#sputzz&k=...` ou `#tagliabue&k=...`. O operador ainda pode trocar o setor pelo botão ao lado.
+
+Os lançamentos vão para a aba **Lançamentos Piloto** da planilha, criada sozinha no primeiro envio. As abas **Lançamentos** e **Lançamentos IBOTIC** dos pilotos anteriores ficam intactas como histórico (a aba Controle mostra só a aba atual).
+
+Os códigos de defeito ficam em ordem numérica crescente, na mesma ordem no `app.js` e no `Code.gs`.
 
 > Ao ampliar para outros setores, adicione-os em `SETORES` no `app.js` **e** no `Code.gs` (o servidor recusa setor fora da lista) e publique uma nova versão do script. O mesmo QR continua valendo. Se os códigos de defeito mudarem, troque também o nome da aba (`ABA` no `Code.gs`), porque as colunas da planilha seguem a lista de códigos.
 
@@ -129,7 +133,7 @@ Os lançamentos da IBOTIC vão para a aba **Lançamentos IBOTIC** da planilha, c
 | Qualquer pessoa com a URL do servidor enviar dados | Gravação exige `CHAVE_LANCAMENTO` (32 caracteres aleatórios, ~120 bits). Comparação em tempo constante. |
 | Operador ou estranho ler os dados de produção | Leitura exige `CHAVE_CONTROLE`, separada. A chave de lançamento **não** lê nada. |
 | Chaves expostas no GitHub | As chaves ficam nas Propriedades do script, nunca no código. O repositório só tem a URL do servidor, que sozinha não dá acesso. |
-| Dados adulterados (números negativos, setor inventado, ruins > produção, data absurda) | O servidor revalida tudo e **recalcula** semana, peças ruins e refugo. Lista fechada de setores (só a IBOTIC no piloto), turnos e códigos Q. Datas só de até 90 dias atrás e 1 dia à frente. |
+| Dados adulterados (números negativos, setor inventado, ruins > produção, data absurda) | O servidor revalida tudo e **recalcula** semana, peças ruins e refugo. Lista fechada de setores (os 4 do piloto), turnos e códigos Q. Datas só de até 90 dias atrás e 1 dia à frente. |
 | Injeção de fórmula na planilha/Excel (ex.: operador `=IMPORTXML(...)`) | Textos que começam com `= + - @` são gravados como texto. O CSV exportado aplica a mesma regra. |
 | XSS (código malicioso digitado num campo aparecer no Controle) | Tudo é exibido como texto puro (`textContent`), nunca como HTML. Política de Segurança de Conteúdo (CSP) só permite scripts do próprio site e conexões com o Google. |
 | Fotos maliciosas ou enormes | O servidor só aceita até 3 arquivos JPEG (verifica a assinatura do arquivo), de até 600 KB cada, com teto de 300 fotos a cada 10 minutos. Nomes dos arquivos são montados só com campos já validados. |

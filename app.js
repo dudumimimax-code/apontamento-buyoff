@@ -9,22 +9,36 @@
   var LS_LANC = 'buyoff_chave_lancamento'; // localStorage: fica no aparelho do setor
   var SS_CTRL = 'buyoff_chave_controle';   // sessionStorage: some ao fechar a aba
 
-  // Piloto: só a IBOTIC. Com um único setor, ele já vem fixo no formulário.
+  // Piloto: 4 setores com um QR code único (o operador escolhe o setor no formulário).
+  // Também dá para gerar um link com o setor já escolhido: .../#sputzz&k=CHAVE
   // ops = sugestões de nome; o campo continua aceitando qualquer nome digitado.
   var SETORES = [
-    {id:'ibotic', nome:'IBOTIC', ops:['Pablo','Mateus','Pedro','Luiz Fernando','Jonatan','Richard']}
+    {id:'ibotic', nome:'IBOTIC', ops:['Pablo','Mateus','Pedro','Luiz Fernando','Jonatan','Richard']},
+    {id:'lixadeira', nome:'LIXADEIRA DE BORDO', ops:['Arthur Castro','Leonardo Ferraz','Gustavo Almeida']},
+    {id:'sputzz', nome:'SPUTZZ', ops:['Joab Leite','Adeilton','Luciano','Artur','Danilo']},
+    {id:'tagliabue', nome:'TAGLIABUE', ops:['Fernando Maciel']}
   ];
-  // Códigos do Diário de Bordo da IBOTIC (mesma lista e ordem do Code.gs)
+  // Códigos do Diário de Bordo, em ordem numérica crescente (mesma lista e ordem do Code.gs).
+  // O 3º item aparece como etiqueta ao lado da descrição.
   var DEFEITOS = [
     ['Q1','Peça batida'],
+    ['Q69','Pintura escorrida','conferir código'],
     ['Q72','Pintura escorrida'],
     ['Q73','Peça na cor errada'],
-    ['Q95','Preparação incorreta'],
-    ['Q120','Bordo aberto'],
+    ['Q81','Pintura com impureza'],
+    ['Q86','Falta calafetação Paris'],
     ['Q88','Marca de cola da lixa na peça'],
     ['Q94','Buraco na peça'],
-    ['Q179','Etiqueta colocada do lado errado'],
-    ['Q81','Pintura com impureza']
+    ['Q95','Preparação incorreta'],
+    ['Q99','Bordo descolado'],
+    ['Q118','Falta de bordo'],
+    ['Q120','Bordo aberto'],
+    ['Q126','Bordo quebrado'],
+    ['Q147','Falta de identificação (etiqueta)'],
+    ['Q156','Peça batida do retrabalho'],
+    ['Q157','Peça do retrabalho sem identificação'],
+    ['Q170','Limpeza da esteira Sputzza'],
+    ['Q179','Etiqueta colocada do lado errado']
   ];
   var DESC = {}; DEFEITOS.forEach(function (d) { DESC[d[0]] = d[1]; });
 
