@@ -57,6 +57,9 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:50
 textarea.inp{min-height:84px;resize:vertical}
 .inp:disabled{opacity:.75}
 .hint{font-size:12.5px;color:var(--muted)}
+.chk{display:flex;align-items:center;gap:10px;min-height:44px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:15px;font-weight:500;color:var(--ink);cursor:pointer}
+.chk input{width:22px;height:22px;flex:none;accent-color:var(--brand)}
+#prod-h{display:block;margin-top:8px}
 .seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;min-height:44px}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg label{display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:500;color:var(--muted);background:var(--bg);padding:9px}
@@ -177,13 +180,15 @@ label.btn{display:inline-flex;align-items:center;justify-content:center;user-sel
       <section class="card" aria-labelledby="h-prod">
         <h2 id="h-prod">Produção</h2>
         <div class="grid">
-          <label class="f" for="producao">Produção total (peças)
+          <label class="f full" for="producao">Produção total (peças)
             <input id="producao" class="inp" type="number" inputmode="numeric" min="0" max="100000" step="1" placeholder="0">
           </label>
-          <label class="f" for="ciclo">Tempo de ciclo (min), opcional
-            <input id="ciclo" class="inp" type="number" inputmode="decimal" min="0" max="1440" step="any" placeholder="0">
+          <label class="chk full" for="semprod">
+            <input id="semprod" type="checkbox">
+            <span>Impossibilidade de contar produção diária</span>
           </label>
         </div>
+        <span class="hint" id="prod-h">Se não deu para contar, marque a caixa acima (ou deixe 0) e lance só os defeitos.</span>
       </section>
 
       <section class="card" aria-labelledby="h-def">
@@ -299,6 +304,6 @@ label.btn{display:inline-flex;align-items:center;justify-content:center;user-sel
     </div>
   </main>
 </div>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

@@ -54,6 +54,9 @@ var DEFEITOS = [
 
 var TURNOS = ['Dia', 'Noite'];
 
+// Texto gravado na coluna Produção quando o operador não conseguiu contar (SOMA ignora texto)
+var PROD_NAO_CONTADA = 'Não contada';
+
 var LIMITES = {
   corpo: 2500000,         // tamanho máximo da requisição (caracteres; comporta 3 fotos)
   fotos: 3,               // fotos por lançamento
@@ -208,14 +211,14 @@ function validar_(d) {
   var turno = String(d.turno || '');
   if (TURNOS.indexOf(turno) < 0) return { erro: 'Turno inválido.' };
 
-  var producao = inteiro_(d.producao, 0, LIMITES.producao);
-  if (producao === null) return { erro: 'Produção inválida.' };
-
-  var ciclo = null;
-  if (d.ciclo !== null && d.ciclo !== undefined && d.ciclo !== '') {
-    ciclo = Number(d.ciclo);
-    if (!isFinite(ciclo) || ciclo < 0 || ciclo > LIMITES.ciclo) return { erro: 'Tempo de ciclo inválido.' };
+  // null = "Impossibilidade de contar produção diária"
+  var producao = null;
+  if (d.producao !== null && d.producao !== undefined && d.producao !== '') {
+    producao = inteiro_(d.producao, 0, LIMITES.producao);
+    if (producao === null) return { erro: 'Produção inválida.' };
   }
+
+  var ciclo = null; // tempo de ciclo saiu do formulário; a coluna fica vazia
 
   var defeitos = {}, ruins = 0, codigos = {};
   DEFEITOS.forEach(function (x) { codigos[x[0]] = true; });
@@ -229,7 +232,8 @@ function validar_(d) {
     if (q === null) return { erro: 'Quantidade inválida no código ' + k + '.' };
     if (q > 0) { defeitos[k] = q; ruins += q; }
   }
-  if (ruins > producao) return { erro: 'Peças ruins (' + ruins + ') passam da produção (' + producao + ').' };
+  if (producao === 0 && ruins > 0) producao = null; // 0 com defeitos = produção não contada
+  if (producao !== null && ruins > producao) return { erro: 'Peças ruins (' + ruins + ') passam da produção (' + producao + ').' };
 
   var obs = texto_(d.obs, LIMITES.obs) || '';
   var w = semanaIso_(y, mo, dd);
@@ -282,7 +286,7 @@ function linha_(r, links) {
     SETORES[r.setor],
     r.turno,
     seguro_(r.operador),
-    r.producao,
+    r.producao === null ? PROD_NAO_CONTADA : r.producao,
     r.ciclo === null ? '' : r.ciclo,
     r.ruins,
     r.producao > 0 ? r.ruins / r.producao : ''
@@ -335,7 +339,7 @@ function listar_() {
       setor: inv[l[COL.setor]] || '',
       turno: String(l[COL.turno]),
       operador: String(l[COL.operador]),
-      producao: Number(l[COL.producao]) || 0,
+      producao: typeof l[COL.producao] === 'number' ? l[COL.producao] : (l[COL.producao] === '' || l[COL.producao] === PROD_NAO_CONTADA ? null : Number(l[COL.producao]) || 0),
       cicloMin: isFinite(ciclo) ? ciclo : null,
       ruins: Number(l[COL.ruins]) || 0,
       defeitos: def,

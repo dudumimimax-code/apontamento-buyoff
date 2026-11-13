@@ -165,7 +165,14 @@
     var o = {}; DEFEITOS.forEach(function (d) { var v = parseInt($('q-' + d[0]).value, 10); if (v > 0) o[d[0]] = v; }); return o;
   }
   function somaRuins(o) { var t = 0; for (var k in o) t += o[k]; return t; }
-  function producao() { var v = parseInt($('producao').value, 10); return isNaN(v) ? null : v; }
+  // Produção: número de peças, ou null quando não deu para contar (caixa marcada).
+  function semContagem() { return $('semprod').checked; }
+  function producao() { if (semContagem()) return null; var v = parseInt($('producao').value, 10); return isNaN(v) ? null : v; }
+  $('semprod').addEventListener('change', function () {
+    var inp = $('producao'); inp.disabled = semContagem();
+    if (semContagem()) inp.value = '';
+    atualizaTotais();
+  });
   function atualizaTotais() {
     idAtual = null;
     var o = qtdDefeitos(), r = somaRuins(o), p = producao();
@@ -285,19 +292,19 @@
     if (!setor) return mostraErro('Escolha o setor.');
     if (!op) return mostraErro('Informe o nome do operador.');
     if (!w) return mostraErro('Informe a data.');
-    if (p === null || p < 0) return mostraErro('Informe a produção total, mesmo que seja zero.');
-    if (ruins > p) return mostraErro('As peças ruins (' + ruins + ') passam da produção total (' + p + '). Confira os números.');
+    if (!semContagem() && (p === null || p < 0)) return mostraErro('Informe a produção total ou marque "Impossibilidade de contar produção diária".');
+    if (p === 0 && ruins > 0) p = null; // 0 com defeitos = produção não contada
+    if (p !== null && ruins > p) return mostraErro('As peças ruins (' + ruins + ') passam da produção total (' + p + '). Confira os números.');
     if (processandoFotos) return mostraErro('Aguarde a foto terminar de carregar.');
-    var ciclo = parseFloat($('ciclo').value);
     if (!idAtual) idAtual = novoId();
     var dados = {id: idAtual, setor: setor.id, operador: op, data: data, turno: turnoAtual(), producao: p,
-      ciclo: isNaN(ciclo) ? null : ciclo, defeitos: def, obs: $('obs').value.trim(),
+      ciclo: null, defeitos: def, obs: $('obs').value.trim(),
       fotos: fotos.map(function (u) { return u.slice(u.indexOf(',') + 1); })};
     var nFotos = dados.fotos.length;
 
     salvando = true; $('enviar').disabled = true; $('enviar').textContent = nFotos ? 'Enviando fotos…' : 'Registrando…';
     api('lancar', {chave: chaveLanc, dados: dados}, nFotos ? 120000 : 25000).then(function (j) {
-      var txt = setor.nome + ' · ' + brData(data) + ' · turno ' + dados.turno + ': ' + nfmt(p) + ' peças, ' + nfmt(ruins) + ' ruins (' + pct(ruins, p) + ').';
+      var txt = setor.nome + ' · ' + brData(data) + ' · turno ' + dados.turno + ': ' + (p === null ? 'produção não contada, ' + nfmt(ruins) + ' ruins.' : nfmt(p) + ' peças, ' + nfmt(ruins) + ' ruins (' + pct(ruins, p) + ').');
       if (nFotos) txt += ' ' + nFotos + (nFotos > 1 ? ' fotos anexadas.' : ' foto anexada.');
       if (j.repetido) txt += ' (Este lançamento já tinha chegado na primeira tentativa.)';
       else if (j.duplicados > 0) txt += ' Atenção: já havia ' + nfmt(j.duplicados) + ' lançamento(s) deste setor nesta data e turno.';
@@ -315,7 +322,7 @@
 
   $('novo').addEventListener('click', function () {
     DEFEITOS.forEach(function (d) { $('q-' + d[0]).value = ''; });
-    $('producao').value = ''; $('ciclo').value = ''; $('obs').value = '';
+    $('producao').value = ''; $('producao').disabled = false; $('semprod').checked = false; $('obs').value = '';
     fotos = []; renderFotos();
     if (!turnoTocado) setTurno(turnoSugerido());
     atualizaTotais(); verificaDuplicado();
@@ -382,14 +389,15 @@
     });
   }
   function renderControle() {
-    var lista = filtrados(), prod = 0, ruins = 0, porCod = {};
+    var lista = filtrados(), prod = 0, ruins = 0, ruinsContados = 0, porCod = {};
     lista.forEach(function (r) {
-      prod += Number(r.producao) || 0; ruins += Number(r.ruins) || 0;
+      ruins += Number(r.ruins) || 0;
+      if (r.producao != null) { prod += Number(r.producao) || 0; ruinsContados += Number(r.ruins) || 0; }
       var d = r.defeitos || {};
       for (var k in d) if (Object.prototype.hasOwnProperty.call(DESC, k)) porCod[k] = (porCod[k] || 0) + (Number(d[k]) || 0);
     });
     $('k-n').textContent = nfmt(lista.length); $('k-prod').textContent = nfmt(prod);
-    $('k-ruins').textContent = nfmt(ruins); $('k-pct').textContent = pct(ruins, prod);
+    $('k-ruins').textContent = nfmt(ruins); $('k-pct').textContent = pct(ruinsContados, prod); // refugo só onde a produção foi contada
 
     var par = $('pareto'); par.textContent = '';
     var cods = Object.keys(porCod).filter(function (k) { return porCod[k] > 0; }).sort(function (a, b) { return porCod[b] - porCod[a]; });
@@ -407,8 +415,8 @@
     lista.slice(0, 200).forEach(function (r) {
       tb.appendChild(h('tr', null,
         h('td', null, brData(r.data)), h('td', null, String(r.setorNome || r.setor || '')), h('td', null, String(r.turno || '')),
-        h('td', null, String(r.operador || '')), h('td', {class: 'num'}, nfmt(r.producao)), h('td', {class: 'num'}, nfmt(r.ruins)),
-        h('td', {class: 'num'}, pct(Number(r.ruins) || 0, Number(r.producao) || 0)),
+        h('td', null, String(r.operador || '')), h('td', {class: 'num'}, r.producao == null ? 'Não contada' : nfmt(r.producao)), h('td', {class: 'num'}, nfmt(r.ruins)),
+        h('td', {class: 'num'}, r.producao == null ? '-' : pct(Number(r.ruins) || 0, Number(r.producao) || 0)),
         h('td', {class: 'num'}, Number(r.fotos) > 0 ? nfmt(r.fotos) : '-')));
     });
     var tv = $('tvazio');
@@ -423,7 +431,7 @@
   // Exportação CSV (com proteção contra fórmulas ao abrir no Excel)
   $('exportar').addEventListener('click', function () {
     var lista = filtrados();
-    var head = ['Data','Ano','Semana','Setor','Turno','Operador','Produção','Ciclo (min)','Peças ruins','Refugo %']
+    var head = ['Data','Ano','Semana','Setor','Turno','Operador','Produção','Peças ruins','Refugo %']
       .concat(DEFEITOS.map(function (d) { return d[0] + ' ' + d[1]; }), ['Observação', 'Fotos', 'Registrado em']);
     function esc(v) {
       v = v == null ? '' : String(v);
@@ -433,8 +441,7 @@
     var linhas = [head.map(esc).join(';')];
     lista.forEach(function (r) {
       var d = r.defeitos || {};
-      linhas.push([brData(r.data), r.ano, r.semana, r.setorNome || r.setor, r.turno, r.operador, r.producao,
-        r.cicloMin == null ? '' : String(r.cicloMin).replace('.', ','), r.ruins,
+      linhas.push([brData(r.data), r.ano, r.semana, r.setorNome || r.setor, r.turno, r.operador, r.producao == null ? 'Não contada' : r.producao, r.ruins,
         r.producao > 0 ? (r.ruins / r.producao * 100).toFixed(1).replace('.', ',') : '']
         .concat(DEFEITOS.map(function (x) { return d[x[0]] || ''; }), [r.obs || '', Number(r.fotos) || 0, r.criadoEm || ''])
         .map(esc).join(';'));
