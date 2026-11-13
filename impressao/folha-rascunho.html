@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<title>Rascunho do dia - Buy Off</title>
+<!-- Folha A4 para impressão. Gere o PDF com: Chrome > Imprimir > Salvar como PDF (A4, margens: nenhuma).
+     Os códigos seguem a mesma lista e ordem do app.js. -->
+<style>
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #fff; color: #111; font-family: Inter, Arial, sans-serif; }
+.page { width: 210mm; height: 297mm; padding: 11mm 13mm 9mm; display: flex; flex-direction: column; }
+header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.2mm solid #111; padding-bottom: 2.6mm; }
+.kicker { font-size: 9pt; font-weight: 600; letter-spacing: .22em; color: #333; }
+h1 { font-size: 27pt; font-weight: 800; letter-spacing: -.01em; line-height: 1.05; margin-top: 1mm; }
+.inst { font-size: 8.6pt; text-align: right; line-height: 1.4; color: #222; }
+.campos { display: grid; grid-template-columns: 1.6fr 1.2fr .9fr 1fr; gap: 4mm; margin-top: 4mm; }
+.campo { border-bottom: .3mm solid #111; height: 12mm; display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 1.2mm; }
+.lbl { font-size: 7.6pt; font-weight: 600; color: #333; }
+.box { font-size: 9.5pt; }
+table { width: 100%; border-collapse: collapse; margin-top: 4mm; table-layout: fixed; }
+thead th { background: #111; color: #fff; font-size: 8pt; font-weight: 700; letter-spacing: .06em; text-align: left; padding: 2mm 3mm; }
+thead th.t { text-align: center; }
+col.c { width: 18mm; } col.d { width: 58mm; } col.t { width: 21mm; }
+tbody td { border: .25mm solid #111; height: 10.6mm; padding: 0 3mm; vertical-align: middle; }
+tbody td.c { font-size: 13.5pt; font-weight: 800; border-right: none; padding-right: 0; }
+tbody td.d { font-size: 9.6pt; font-weight: 500; line-height: 1.15; border-left: none; padding-left: 1mm; }
+.rodape { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; margin-top: 4mm; }
+.rodape .b, .obs .b { border: .3mm solid #111; margin-top: 1.4mm; }
+.rodape .b { height: 11mm; }
+.obs { margin-top: 3.5mm; flex: 1; display: flex; flex-direction: column; }
+.obs .b { flex: 1; }
+</style></head>
+<body><div class="page">
+  <header>
+    <div><div class="kicker">BUY OFF · PINTURA</div><h1>Rascunho do dia</h1></div>
+    <div class="inst">Marque um traço a cada defeito.<br>No fim do expediente, lance os<br>totais no sistema.</div>
+  </header>
+  <div class="campos">
+    <div class="campo"><span class="lbl">OPERADOR</span></div>
+    <div class="campo"><span class="lbl">SETOR</span></div>
+    <div class="campo"><span class="lbl">DATA</span></div>
+    <div class="campo"><span class="lbl">TURNO</span><span class="box">☐ Dia &nbsp;&nbsp;☐ Noite</span></div>
+  </div>
+  <table>
+    <colgroup><col class="c"><col class="d"><col><col class="t"></colgroup>
+    <thead><tr><th>CÓDIGO</th><th>DEFEITO</th><th>MARCAÇÕES (um traço por peça)</th><th class="t">TOTAL</th></tr></thead>
+    <tbody>
+      <tr><td class="c">Q1</td><td class="d">Peça batida</td><td></td><td></td></tr>
+      <tr><td class="c">Q69</td><td class="d">Pintura escorrida</td><td></td><td></td></tr>
+      <tr><td class="c">Q72</td><td class="d">Pintura escorrida</td><td></td><td></td></tr>
+      <tr><td class="c">Q73</td><td class="d">Peça na cor errada</td><td></td><td></td></tr>
+      <tr><td class="c">Q81</td><td class="d">Pintura com impureza</td><td></td><td></td></tr>
+      <tr><td class="c">Q86</td><td class="d">Falta calafetação Paris</td><td></td><td></td></tr>
+      <tr><td class="c">Q88</td><td class="d">Marca de cola da lixa na peça</td><td></td><td></td></tr>
+      <tr><td class="c">Q94</td><td class="d">Buraco na peça</td><td></td><td></td></tr>
+      <tr><td class="c">Q95</td><td class="d">Preparação incorreta</td><td></td><td></td></tr>
+      <tr><td class="c">Q99</td><td class="d">Bordo descolado</td><td></td><td></td></tr>
+      <tr><td class="c">Q118</td><td class="d">Falta de bordo</td><td></td><td></td></tr>
+      <tr><td class="c">Q120</td><td class="d">Bordo aberto</td><td></td><td></td></tr>
+      <tr><td class="c">Q126</td><td class="d">Bordo quebrado</td><td></td><td></td></tr>
+      <tr><td class="c">Q147</td><td class="d">Falta de identificação (etiqueta)</td><td></td><td></td></tr>
+      <tr><td class="c">Q156</td><td class="d">Peça batida do retrabalho</td><td></td><td></td></tr>
+      <tr><td class="c">Q157</td><td class="d">Peça do retrabalho sem identificação</td><td></td><td></td></tr>
+      <tr><td class="c">Q170</td><td class="d">Limpeza da esteira Sputzza</td><td></td><td></td></tr>
+      <tr><td class="c">Q179</td><td class="d">Etiqueta colocada do lado errado</td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  <div class="rodape">
+    <div><span class="lbl">PRODUÇÃO DO DIA (peças)</span><div class="b"></div></div>
+    <div><span class="lbl">CICLO (min)</span><div class="b"></div></div>
+    <div><span class="lbl">TOTAL DE PEÇAS RUINS</span><div class="b"></div></div>
+  </div>
+  <div class="obs"><span class="lbl">OBSERVAÇÕES</span><div class="b"></div></div>
+</div></body></html>
