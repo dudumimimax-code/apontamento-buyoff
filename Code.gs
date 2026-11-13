@@ -18,31 +18,27 @@
  *  - Fotos (opcionais, até 3): só JPEG, tamanho limitado, salvas numa pasta PRIVADA do Drive.
  */
 
-var ABA = 'Lançamentos';
+// Aba nova para o piloto da IBOTIC: os códigos mudaram, então as colunas também.
+// A aba antiga ("Lançamentos", piloto de Lixação/Polimento/Tagliabue) fica intacta como histórico.
+var ABA = 'Lançamentos IBOTIC';
 var TZ = 'America/Sao_Paulo';
 
-// Piloto: só estes 3 setores são aceitos
+// Piloto: só a IBOTIC é aceita
 var SETORES = {
-  'lixacao': 'LIXAÇÃO',
-  'polimento': 'POLIMENTO',
-  'tagliabue': 'TAGLIABUE'
+  'ibotic': 'IBOTIC'
 };
 
+// Códigos do Diário de Bordo da IBOTIC (mesma lista e ordem do app.js)
 var DEFEITOS = [
   ['Q1', 'Peça batida'],
-  ['Q147', 'Falta de identificação (etiqueta)'],
-  ['Q126', 'Bordo quebrado'],
-  ['Q120', 'Bordo aberto'],
-  ['Q118', 'Falta de bordo'],
-  ['Q86', 'Falta calafetação Paris'],
-  ['Q99', 'Bordo descolado'],
-  ['Q156', 'Peça batida do retrabalho'],
-  ['Q95', 'Preparação incorreta'],
-  ['Q94', 'Buraco na peça'],
-  ['Q69', 'Pintura escorrida'],
-  ['Q157', 'Peça do retrabalho sem identificação'],
   ['Q72', 'Pintura escorrida'],
-  ['Q170', 'Limpeza da esteira Sputzza']
+  ['Q73', 'Peça na cor errada'],
+  ['Q95', 'Preparação incorreta'],
+  ['Q120', 'Bordo aberto'],
+  ['Q88', 'Marca de cola da lixa na peça'],
+  ['Q94', 'Buraco na peça'],
+  ['Q179', 'Etiqueta colocada do lado errado'],
+  ['Q81', 'Pintura com impureza']
 ];
 
 var TURNOS = ['Dia', 'Noite'];

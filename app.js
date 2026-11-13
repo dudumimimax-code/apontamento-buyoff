@@ -9,28 +9,22 @@
   var LS_LANC = 'buyoff_chave_lancamento'; // localStorage: fica no aparelho do setor
   var SS_CTRL = 'buyoff_chave_controle';   // sessionStorage: some ao fechar a aba
 
-  // Códigos conforme o Diário de Produção em papel (mesma lista do Code.gs)
-  // Piloto: 3 setores com um QR code único (o operador escolhe o setor no formulário)
+  // Piloto: só a IBOTIC. Com um único setor, ele já vem fixo no formulário.
+  // ops = sugestões de nome; o campo continua aceitando qualquer nome digitado.
   var SETORES = [
-    {id:'lixacao', nome:'LIXAÇÃO', ops:['Vinicius','Maicon da Silva Souza']},
-    {id:'polimento', nome:'POLIMENTO', ops:['Thigo','Ari']},
-    {id:'tagliabue', nome:'TAGLIABUE', ops:['Fernando Maciel','Maicon da Silva Souza']}
+    {id:'ibotic', nome:'IBOTIC', ops:['Pablo','Mateus','Pedro','Luiz Fernando','Jonatan','Richard']}
   ];
+  // Códigos do Diário de Bordo da IBOTIC (mesma lista e ordem do Code.gs)
   var DEFEITOS = [
     ['Q1','Peça batida'],
-    ['Q147','Falta de identificação (etiqueta)'],
-    ['Q126','Bordo quebrado'],
-    ['Q120','Bordo aberto'],
-    ['Q118','Falta de bordo'],
-    ['Q86','Falta calafetação Paris'],
-    ['Q99','Bordo descolado'],
-    ['Q156','Peça batida do retrabalho'],
+    ['Q72','Pintura escorrida'],
+    ['Q73','Peça na cor errada'],
     ['Q95','Preparação incorreta'],
+    ['Q120','Bordo aberto'],
+    ['Q88','Marca de cola da lixa na peça'],
     ['Q94','Buraco na peça'],
-    ['Q69','Pintura escorrida','conferir código'],
-    ['Q157','Peça do retrabalho sem identificação'],
-    ['Q72','Pintura escorrida','conferir código'],
-    ['Q170','Limpeza da esteira Sputzza']
+    ['Q179','Etiqueta colocada do lado errado'],
+    ['Q81','Pintura com impureza']
   ];
   var DESC = {}; DEFEITOS.forEach(function (d) { DESC[d[0]] = d[1]; });
 
@@ -208,6 +202,7 @@
     selSetor.value = id; atualizaOperadores();
     $('setor-lock-txt').textContent = s.nome; $('setor-lock').hidden = false;
     $('setor-label').hidden = true;
+    $('setor-unlock').hidden = SETORES.length < 2; // com um só setor não há o que trocar
   }
   $('setor-unlock').addEventListener('click', function () {
     $('setor-lock').hidden = true; $('setor-label').hidden = false; selSetor.focus();
@@ -482,6 +477,7 @@
     if (chave && chaveValida(chave)) { chaveLanc = chave; guardaSet('localStorage', LS_LANC, chave); verificaChave(); }
     if (rota === 'controle') return mostra('ctrl');
     if (setorPorId(rota)) travaSetor(rota);
+    else if (SETORES.length === 1) travaSetor(SETORES[0].id);
     mostra('form');
   }
   window.addEventListener('hashchange', aplicaHash);
