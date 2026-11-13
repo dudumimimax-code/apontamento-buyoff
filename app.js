@@ -19,10 +19,8 @@
     {id:'tagliabue', nome:'TAGLIABUE', ops:['Fernando Maciel']}
   ];
   // Códigos do Diário de Bordo, em ordem numérica crescente (mesma lista e ordem do Code.gs).
-  // O 3º item aparece como etiqueta ao lado da descrição.
   var DEFEITOS = [
     ['Q1','Peça batida'],
-    ['Q69','Pintura escorrida','conferir código'],
     ['Q72','Pintura escorrida'],
     ['Q73','Peça na cor errada'],
     ['Q81','Pintura com impureza'],
