@@ -69,22 +69,22 @@ var ENDPOINT = 'https://script.google.com/macros/s/AKfycb...xyz/exec';
 3. **Settings > Pages**: em *Build and deployment*, escolha **Deploy from a branch**, branch **main**, pasta **/ (root)**, e salve.
 4. Em 1 a 2 minutos o site sai em `https://SEU-USUARIO.github.io/apontamento-buyoff/`.
 
-## Passo 5 · Gerar o QR code (piloto: IBOTIC, Lixadeira de Bordo, Sputzz e Tagliabue)
+## Passo 5 · Gerar o QR code (piloto: Tagliabue, IBOTIC, Polimento, Madeirado UV e Madeirado Colorido)
 
 1. Abra o site e vá na aba **Controle**. Entre com a `CHAVE_CONTROLE`.
 2. Abra **Link do QR code**, cole a `CHAVE_LANCAMENTO` e clique em **Gerar link**.
 3. Copie o link e gere o QR code (ex.: no Chrome, menu ⋮ > *Compartilhar > Criar QR code*, que gera no aparelho, sem mandar o link a terceiros).
-4. Imprima e cole o mesmo QR nas 4 máquinas do piloto.
+4. Imprima e cole o mesmo QR nos 5 setores do piloto.
 
-Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de endereço. O operador escolhe o setor no formulário, e o campo Operador sugere os nomes daquele setor (aceita qualquer nome digitado).
+Quando o operador lê o QR, a chave fica salva no aparelho e some da barra de endereço. O operador escolhe o setor no formulário; aparecem só os códigos Q daquele setor (os mesmos do Diário de Produção de papel do setor) e o campo Operador sugere os nomes daquele setor (aceita qualquer nome digitado). A produção é lançada **por peça** (contadas uma a uma) ou **por pilha** (várias peças): o operador escolhe no seletor Peça/Pilha. Os defeitos são sempre por peça, e o refugo % só é calculado quando a produção é em peças.
 
-Opcional: para um QR com o setor já escolhido, acrescente o id do setor logo depois do `#` no link gerado: `#ibotic&k=...`, `#lixadeira&k=...`, `#sputzz&k=...` ou `#tagliabue&k=...`. O operador ainda pode trocar o setor pelo botão ao lado.
+Opcional: para um QR com o setor já escolhido, acrescente o id do setor logo depois do `#` no link gerado: `#tagliabue&k=...`, `#ibotic&k=...`, `#polimento&k=...`, `#madeirado-uv&k=...` ou `#madeirado-colorido&k=...`. O operador ainda pode trocar o setor pelo botão ao lado.
 
-Os lançamentos vão para a aba **Lançamentos Piloto** da planilha, criada sozinha no primeiro envio. As abas **Lançamentos** e **Lançamentos IBOTIC** dos pilotos anteriores ficam intactas como histórico (a aba Controle mostra só a aba atual).
+Os lançamentos vão para a aba **Lançamentos Piloto 5 Setores** da planilha, criada sozinha no primeiro envio (a coluna **Unidade** diz se a produção foi em Peça ou Pilha). As abas **Lançamentos**, **Lançamentos IBOTIC** e **Lançamentos Piloto** dos pilotos anteriores ficam intactas como histórico (a aba Controle mostra só a aba atual).
 
 Os códigos de defeito ficam em ordem numérica crescente, na mesma ordem no `app.js` e no `Code.gs`.
 
-> Ao ampliar para outros setores, adicione-os em `SETORES` no `app.js` **e** no `Code.gs` (o servidor recusa setor fora da lista) e publique uma nova versão do script. O mesmo QR continua valendo. Se os códigos de defeito mudarem, troque também o nome da aba (`ABA` no `Code.gs`), porque as colunas da planilha seguem a lista de códigos.
+> Ao ampliar para outros setores, adicione-os em `SETORES` no `app.js` **e** no `Code.gs`, com a lista `cods` de códigos do setor, (o servidor recusa setor fora da lista) e publique uma nova versão do script. O mesmo QR continua valendo. Se os códigos de defeito mudarem, troque também o nome da aba (`ABA` no `Code.gs`), porque as colunas da planilha seguem a lista de códigos.
 
 ## Passo 6 · Testar
 
@@ -133,7 +133,7 @@ Os códigos de defeito ficam em ordem numérica crescente, na mesma ordem no `ap
 | Qualquer pessoa com a URL do servidor enviar dados | Gravação exige `CHAVE_LANCAMENTO` (32 caracteres aleatórios, ~120 bits). Comparação em tempo constante. |
 | Operador ou estranho ler os dados de produção | Leitura exige `CHAVE_CONTROLE`, separada. A chave de lançamento **não** lê nada. |
 | Chaves expostas no GitHub | As chaves ficam nas Propriedades do script, nunca no código. O repositório só tem a URL do servidor, que sozinha não dá acesso. |
-| Dados adulterados (números negativos, setor inventado, ruins > produção, data absurda) | O servidor revalida tudo e **recalcula** semana, peças ruins e refugo. Lista fechada de setores (os 4 do piloto), turnos e códigos Q. Datas só de até 90 dias atrás e 1 dia à frente. |
+| Dados adulterados (números negativos, setor inventado, ruins > produção, data absurda) | O servidor revalida tudo e **recalcula** semana, peças ruins e refugo. Lista fechada de setores (os 5 do piloto), turnos e códigos Q (cada setor só aceita os seus). Datas só de até 90 dias atrás e 1 dia à frente. |
 | Injeção de fórmula na planilha/Excel (ex.: operador `=IMPORTXML(...)`) | Textos que começam com `= + - @` são gravados como texto. O CSV exportado aplica a mesma regra. |
 | XSS (código malicioso digitado num campo aparecer no Controle) | Tudo é exibido como texto puro (`textContent`), nunca como HTML. Política de Segurança de Conteúdo (CSP) só permite scripts do próprio site e conexões com o Google. |
 | Fotos maliciosas ou enormes | O servidor só aceita até 3 arquivos JPEG (verifica a assinatura do arquivo), de até 600 KB cada, com teto de 300 fotos a cada 10 minutos. Nomes dos arquivos são montados só com campos já validados. |

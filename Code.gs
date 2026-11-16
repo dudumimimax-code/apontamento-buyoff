@@ -18,43 +18,71 @@
  *  - Fotos (opcionais, até 3): só JPEG, tamanho limitado, salvas numa pasta PRIVADA do Drive.
  */
 
-// Aba nova para o piloto de 4 setores: os códigos mudaram, então as colunas também.
-// As abas antigas ("Lançamentos" e "Lançamentos IBOTIC") ficam intactas como histórico.
-var ABA = 'Lançamentos Piloto';
+// Aba nova para o piloto de 5 setores: os códigos mudaram, então as colunas também.
+// As abas antigas ("Lançamentos", "Lançamentos IBOTIC" e "Lançamentos Piloto") ficam intactas como histórico.
+var ABA = 'Lançamentos Piloto 5 Setores';
 var TZ = 'America/Sao_Paulo';
 
-// Piloto: só estes 4 setores são aceitos (mesmos ids do app.js)
+// Piloto: só estes 5 setores são aceitos (mesmos ids do app.js).
+// cods = códigos Q aceitos em cada setor (os do Diário de Produção de papel do setor).
 var SETORES = {
-  'ibotic': 'IBOTIC',
-  'lixadeira': 'LIXADEIRA DE BORDO',
-  'sputzz': 'SPUTZZ',
-  'tagliabue': 'TAGLIABUE'
+  'tagliabue': { nome: 'TAGLIABUE',
+    cods: ['Q1','Q72','Q86','Q94','Q95','Q99','Q118','Q120','Q126','Q147','Q156','Q157','Q170'] },
+  'ibotic': { nome: 'IBOTIC',
+    cods: ['Q1','Q72','Q73','Q81','Q88','Q94','Q95','Q120','Q179'] },
+  'polimento': { nome: 'POLIMENTO',
+    cods: ['Q1','Q72','Q73','Q74','Q76','Q77','Q79','Q80','Q81','Q94','Q95','Q99'] },
+  'madeirado-uv': { nome: 'MADEIRADO UV',
+    cods: ['Q1','Q65','Q66','Q79','Q81','Q88','Q92','Q94','Q95','Q96','Q99','Q147','Q201','Q202','Q206','Q207'] },
+  'madeirado-colorido': { nome: 'MADEIRADO COLORIDO',
+    cods: ['Q1','Q79','Q80','Q81','Q87','Q88','Q94','Q95','Q99','Q109','Q111','Q126','Q147','Q154'] }
 };
 
-// Códigos do Diário de Bordo, em ordem numérica crescente (mesma lista e ordem do app.js)
+// Todos os códigos do piloto, em ordem numérica crescente (mesma lista e ordem do app.js).
+// Cada código é uma coluna da planilha.
 var DEFEITOS = [
   ['Q1', 'Peça batida'],
+  ['Q65', 'Bordo madeirado não quebrado a quina'],
+  ['Q66', 'Falta pintar o vão padrão'],
   ['Q72', 'Pintura escorrida'],
   ['Q73', 'Peça na cor errada'],
+  ['Q74', 'Peça fora de tonalidade'],
+  ['Q76', 'Peça sem pintura'],
+  ['Q77', 'Empapelamento incorreto'],
+  ['Q79', 'Pintura manchada'],
+  ['Q80', 'Pintura desplacando'],
   ['Q81', 'Pintura com impureza'],
   ['Q86', 'Falta calafetação Paris'],
+  ['Q87', 'Cola da etiqueta'],
   ['Q88', 'Marca de cola da lixa na peça'],
+  ['Q92', 'Pintura áspera'],
   ['Q94', 'Buraco na peça'],
   ['Q95', 'Preparação incorreta'],
+  ['Q96', 'Pintura com falha'],
   ['Q99', 'Bordo descolado'],
+  ['Q109', 'Medida errada (espessura / tamanho)'],
+  ['Q111', 'Usinagem serrilhada'],
   ['Q118', 'Falta de bordo'],
   ['Q120', 'Bordo aberto'],
   ['Q126', 'Bordo quebrado'],
   ['Q147', 'Falta de identificação (etiqueta)'],
+  ['Q154', 'Peça na pilha errada (outro acabamento)'],
   ['Q156', 'Peça batida do retrabalho'],
   ['Q157', 'Peça do retrabalho sem identificação'],
   ['Q170', 'Limpeza da esteira Sputzza'],
-  ['Q179', 'Etiqueta colocada do lado errado']
+  ['Q179', 'Etiqueta colocada do lado errado'],
+  ['Q201', 'Risco na peça'],
+  ['Q202', 'Marca da etiqueta na peça'],
+  ['Q206', 'Marca do rolo'],
+  ['Q207', 'Peça queimada']
 ];
 
 var TURNOS = ['Dia', 'Noite'];
 
-// Texto gravado na coluna Produção quando o operador não conseguiu contar (SOMA ignora texto)
+// Como a produção foi contada: peça a peça ou em pilhas (várias peças)
+var UNIDADES = ['Peça', 'Pilha'];
+
+// Lançamentos antigos sem contagem (a opção saiu do formulário; só para leitura)
 var PROD_NAO_CONTADA = 'Não contada';
 
 var LIMITES = {
@@ -65,7 +93,6 @@ var LIMITES = {
   operador: 60,
   obs: 500,
   producao: 100000,
-  ciclo: 1440,
   diasPassado: 90,        // aceita lançamentos de até 90 dias atrás
   diasFuturo: 1,          // e no máximo 1 dia à frente
   lancamentos10min: 300,  // teto global de gravações por 10 minutos
@@ -74,13 +101,13 @@ var LIMITES = {
 
 // Posições das colunas (0 = coluna A). Não reordene as colunas da planilha.
 var COL = { criado: 0, id: 1, data: 2, ano: 3, semana: 4, setor: 5, turno: 6, operador: 7,
-            producao: 8, ciclo: 9, ruins: 10, refugo: 11, def0: 12 };
+            producao: 8, unidade: 9, ruins: 10, refugo: 11, def0: 12 };
 COL.obs = COL.def0 + DEFEITOS.length;
 COL.fotos = COL.obs + 1;
 
 function cabecalho_() {
   return ['Registrado em', 'ID', 'Data', 'Ano', 'Semana', 'Setor', 'Turno', 'Operador',
-          'Produção', 'Ciclo (min)', 'Peças ruins', 'Refugo %']
+          'Produção', 'Unidade', 'Peças ruins', 'Refugo %']
     .concat(DEFEITOS.map(function (d) { return d[0] + ' ' + d[1]; }))
     .concat(['Observação', 'Fotos']);
 }
@@ -211,29 +238,27 @@ function validar_(d) {
   var turno = String(d.turno || '');
   if (TURNOS.indexOf(turno) < 0) return { erro: 'Turno inválido.' };
 
-  // null = "Impossibilidade de contar produção diária"
-  var producao = null;
-  if (d.producao !== null && d.producao !== undefined && d.producao !== '') {
-    producao = inteiro_(d.producao, 0, LIMITES.producao);
-    if (producao === null) return { erro: 'Produção inválida.' };
-  }
+  var unidade = String(d.unidade || '');
+  if (UNIDADES.indexOf(unidade) < 0) return { erro: 'Informe se a produção foi contada por peça ou por pilha.' };
 
-  var ciclo = null; // tempo de ciclo saiu do formulário; a coluna fica vazia
+  var producao = inteiro_(d.producao, 0, LIMITES.producao);
+  if (producao === null) return { erro: 'Produção inválida.' };
 
+  // só os códigos do setor escolhido
   var defeitos = {}, ruins = 0, codigos = {};
-  DEFEITOS.forEach(function (x) { codigos[x[0]] = true; });
+  SETORES[setor].cods.forEach(function (c) { codigos[c] = true; });
   var bruto = d.defeitos || {};
   if (typeof bruto !== 'object' || Array.isArray(bruto)) return { erro: 'Defeitos inválidos.' };
   var chaves = Object.keys(bruto);
   for (var i = 0; i < chaves.length; i++) {
     var k = chaves[i];
-    if (!Object.prototype.hasOwnProperty.call(codigos, k)) return { erro: 'Código de defeito desconhecido: ' + String(k).slice(0, 10) };
+    if (!Object.prototype.hasOwnProperty.call(codigos, k)) return { erro: 'Código ' + String(k).slice(0, 10) + ' não pertence ao setor ' + SETORES[setor].nome + '.' };
     var q = inteiro_(bruto[k], 0, LIMITES.producao);
     if (q === null) return { erro: 'Quantidade inválida no código ' + k + '.' };
     if (q > 0) { defeitos[k] = q; ruins += q; }
   }
-  if (producao === 0 && ruins > 0) producao = null; // 0 com defeitos = produção não contada
-  if (producao !== null && ruins > producao) return { erro: 'Peças ruins (' + ruins + ') passam da produção (' + producao + ').' };
+  // em pilhas não dá para comparar: os defeitos são contados por peça
+  if (unidade === 'Peça' && ruins > producao) return { erro: 'Peças ruins (' + ruins + ') passam da produção (' + producao + ' peças).' };
 
   var obs = texto_(d.obs, LIMITES.obs) || '';
   var w = semanaIso_(y, mo, dd);
@@ -254,7 +279,7 @@ function validar_(d) {
   }
 
   return { registro: { id: id, setor: setor, operador: operador, data: data, ano: w.ano, semana: w.sem,
-    turno: turno, producao: producao, ciclo: ciclo, defeitos: defeitos, ruins: ruins, obs: obs, fotos: fotos } };
+    turno: turno, producao: producao, unidade: unidade, defeitos: defeitos, ruins: ruins, obs: obs, fotos: fotos } };
 }
 
 /** Salva as fotos na pasta privada e devolve os links (um por linha). */
@@ -283,13 +308,13 @@ function linha_(r, links) {
     Utilities.parseDate(r.data, TZ, 'yyyy-MM-dd'),
     r.ano,
     r.semana,
-    SETORES[r.setor],
+    SETORES[r.setor].nome,
     r.turno,
     seguro_(r.operador),
-    r.producao === null ? PROD_NAO_CONTADA : r.producao,
-    r.ciclo === null ? '' : r.ciclo,
+    r.producao,
+    r.unidade,
     r.ruins,
-    r.producao > 0 ? r.ruins / r.producao : ''
+    r.unidade === 'Peça' && r.producao > 0 ? r.ruins / r.producao : ''
   ].concat(DEFEITOS.map(function (x) { return r.defeitos[x[0]] || ''; }))
    .concat([seguro_(r.obs), links || '']);
 }
@@ -300,7 +325,7 @@ function procurar_(aba, r) {
   if (ult < 2) return { repetido: false, duplicados: 0 };
   var ini = Math.max(2, ult - 999);
   var vals = aba.getRange(ini, COL.id + 1, ult - ini + 1, COL.turno - COL.id + 1).getValues();
-  var nome = SETORES[r.setor], dup = 0;
+  var nome = SETORES[r.setor].nome, dup = 0;
   for (var i = 0; i < vals.length; i++) {
     var l = vals[i];
     if (String(l[0]) === r.id) return { repetido: true, duplicados: 0 };
@@ -321,14 +346,13 @@ function listar_() {
   var ini = Math.max(2, ult - LIMITES.leitura + 1);
   var vals = aba.getRange(ini, 1, ult - ini + 1, cabecalho_().length).getValues();
   var inv = {};
-  Object.keys(SETORES).forEach(function (k) { inv[SETORES[k]] = k; });
+  Object.keys(SETORES).forEach(function (k) { inv[SETORES[k].nome] = k; });
 
   var regs = [];
   vals.forEach(function (l) {
     if (!l[COL.id]) return;
     var def = {};
     DEFEITOS.forEach(function (x, i) { var q = Number(l[COL.def0 + i]); if (q > 0) def[x[0]] = q; });
-    var ciclo = l[COL.ciclo] === '' ? null : Number(l[COL.ciclo]);
     regs.push({
       id: String(l[COL.id]),
       criadoEm: ehData_(l[COL.criado]) ? l[COL.criado].toISOString() : String(l[COL.criado]),
@@ -340,7 +364,7 @@ function listar_() {
       turno: String(l[COL.turno]),
       operador: String(l[COL.operador]),
       producao: typeof l[COL.producao] === 'number' ? l[COL.producao] : (l[COL.producao] === '' || l[COL.producao] === PROD_NAO_CONTADA ? null : Number(l[COL.producao]) || 0),
-      cicloMin: isFinite(ciclo) ? ciclo : null,
+      unidade: String(l[COL.unidade]) === 'Pilha' ? 'Pilha' : 'Peça',
       ruins: Number(l[COL.ruins]) || 0,
       defeitos: def,
       obs: String(l[COL.obs] || ''),

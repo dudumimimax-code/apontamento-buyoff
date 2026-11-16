@@ -57,8 +57,6 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:50
 textarea.inp{min-height:84px;resize:vertical}
 .inp:disabled{opacity:.75}
 .hint{font-size:12.5px;color:var(--muted)}
-.chk{display:flex;align-items:center;gap:10px;min-height:44px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:15px;font-weight:500;color:var(--ink);cursor:pointer}
-.chk input{width:22px;height:22px;flex:none;accent-color:var(--brand)}
 #prod-h{display:block;margin-top:8px}
 .seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;min-height:44px}
 .seg input{position:absolute;opacity:0;pointer-events:none}
@@ -72,7 +70,6 @@ textarea.inp{min-height:84px;resize:vertical}
 .note.bad{background:var(--bad-soft);color:var(--bad)}
 .note.ok{background:var(--ok-soft);color:var(--ok)}
 .defrow{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 6px;border-top:1px solid var(--line);border-radius:6px}
-.defrow:first-of-type{border-top:0}
 .defrow.on{background:var(--brand-soft)}
 .code{font-family:var(--mono);font-weight:500;font-size:14px}
 .desc{font-size:14px;min-width:0}
@@ -100,6 +97,8 @@ textarea.inp{min-height:84px;resize:vertical}
 .kpi small{display:block;font-size:11.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
 .kpi b{font-family:var(--mono);font-size:22px;font-weight:500}
 .kpi.bad b{color:var(--bad)}
+.kpi small.sub{text-transform:none;letter-spacing:0;font-size:12px}
+.kpi small.sub:empty{display:none}
 .par{display:grid;grid-template-columns:52px minmax(0,1fr) 84px;gap:10px;align-items:center;padding:5px 0;font-size:14px}
 .par .track{height:10px;background:var(--bg);border-radius:6px;overflow:hidden;margin-top:4px}
 .par .fill{height:100%;background:var(--bad);border-radius:6px}
@@ -180,20 +179,24 @@ label.btn{display:inline-flex;align-items:center;justify-content:center;user-sel
       <section class="card" aria-labelledby="h-prod">
         <h2 id="h-prod">Produção</h2>
         <div class="grid">
-          <label class="f full" for="producao">Produção total (peças)
+          <div class="f full">
+            <span id="un-l">Contagem por</span>
+            <div class="seg" role="radiogroup" aria-labelledby="un-l">
+              <input type="radio" name="unidade" id="un-peca" value="Peça" checked><label for="un-peca">Peça</label>
+              <input type="radio" name="unidade" id="un-pilha" value="Pilha"><label for="un-pilha">Pilha</label>
+            </div>
+          </div>
+          <label class="f full" for="producao"><span id="prod-l">Produção total (peças)</span>
             <input id="producao" class="inp" type="number" inputmode="numeric" min="0" max="100000" step="1" placeholder="0">
           </label>
-          <label class="chk full" for="semprod">
-            <input id="semprod" type="checkbox">
-            <span>Impossibilidade de contar produção diária</span>
-          </label>
         </div>
-        <span class="hint" id="prod-h">Se não deu para contar, marque a caixa acima (ou deixe 0) e lance só os defeitos.</span>
+        <span class="hint" id="prod-h"></span>
       </section>
 
       <section class="card" aria-labelledby="h-def">
         <h2 id="h-def">Defeitos de qualidade</h2>
-        <p class="hint" style="margin:0 0 6px">Informe só a quantidade de cada código encontrado. Os campos vazios contam como zero.</p>
+        <p class="hint" style="margin:0 0 6px">Informe só a quantidade de peças de cada código encontrado. Os campos vazios contam como zero.</p>
+        <div id="def-vazio" class="empty">Escolha o setor para ver os códigos de defeito.</div>
         <div id="defeitos"></div>
       </section>
 
@@ -268,7 +271,7 @@ label.btn{display:inline-flex;align-items:center;justify-content:center;user-sel
     <div id="ctrl-dados" hidden>
       <div class="kpis">
         <div class="kpi"><small>Lançamentos</small><b id="k-n">0</b></div>
-        <div class="kpi"><small>Produção</small><b id="k-prod">0</b></div>
+        <div class="kpi"><small>Produção (peças)</small><b id="k-prod">0</b><small id="k-pilhas" class="sub"></small></div>
         <div class="kpi bad"><small>Peças ruins</small><b id="k-ruins">0</b></div>
         <div class="kpi bad"><small>Refugo</small><b id="k-pct">-</b></div>
       </div>
@@ -304,6 +307,6 @@ label.btn{display:inline-flex;align-items:center;justify-content:center;user-sel
     </div>
   </main>
 </div>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

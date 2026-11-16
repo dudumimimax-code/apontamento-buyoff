@@ -9,34 +9,60 @@
   var LS_LANC = 'buyoff_chave_lancamento'; // localStorage: fica no aparelho do setor
   var SS_CTRL = 'buyoff_chave_controle';   // sessionStorage: some ao fechar a aba
 
-  // Piloto: 4 setores com um QR code único (o operador escolhe o setor no formulário).
-  // Também dá para gerar um link com o setor já escolhido: .../#sputzz&k=CHAVE
+  // Piloto: 5 setores com um QR code único (o operador escolhe o setor no formulário).
+  // Também dá para gerar um link com o setor já escolhido: .../#polimento&k=CHAVE
   // ops = sugestões de nome; o campo continua aceitando qualquer nome digitado.
+  // cods = códigos Q que aparecem para o setor (tirados do Diário de Produção de papel de cada setor).
+  // Mesma lista do Code.gs.
   var SETORES = [
-    {id:'ibotic', nome:'IBOTIC', ops:['Pablo','Mateus','Pedro','Luiz Fernando','Jonatan','Richard']},
-    {id:'lixadeira', nome:'LIXADEIRA DE BORDO', ops:['Arthur Castro','Leonardo Ferraz','Gustavo Almeida']},
-    {id:'sputzz', nome:'SPUTZZ', ops:['Joab Leite','Adeilton','Luciano','Artur','Danilo']},
-    {id:'tagliabue', nome:'TAGLIABUE', ops:['Fernando Maciel']}
+    {id:'tagliabue', nome:'TAGLIABUE', ops:['Maicon da Silva Souza','Fernando Maciel'],
+      cods:['Q1','Q72','Q86','Q94','Q95','Q99','Q118','Q120','Q126','Q147','Q156','Q157','Q170']},
+    {id:'ibotic', nome:'IBOTIC', ops:['Adeilton','Dhennyo','Luciani','Matheus','Erick','Mauro'],
+      cods:['Q1','Q72','Q73','Q81','Q88','Q94','Q95','Q120','Q179']},
+    {id:'polimento', nome:'POLIMENTO', ops:['Jair Magalhães de Oliveira','Tiago da Silva Souza','Aparecido Santos de Alegria'],
+      cods:['Q1','Q72','Q73','Q74','Q76','Q77','Q79','Q80','Q81','Q94','Q95','Q99']},
+    {id:'madeirado-uv', nome:'MADEIRADO UV', ops:['Paulo','Jeferson','Felipe'],
+      cods:['Q1','Q65','Q66','Q79','Q81','Q88','Q92','Q94','Q95','Q96','Q99','Q147','Q201','Q202','Q206','Q207']},
+    {id:'madeirado-colorido', nome:'MADEIRADO COLORIDO', ops:['Elias','José Edu Andrade Siqueira'],
+      cods:['Q1','Q79','Q80','Q81','Q87','Q88','Q94','Q95','Q99','Q109','Q111','Q126','Q147','Q154']}
   ];
-  // Códigos do Diário de Bordo, em ordem numérica crescente (mesma lista e ordem do Code.gs).
+  // Todos os códigos do piloto, em ordem numérica crescente (mesma lista e ordem do Code.gs;
+  // cada código é uma coluna da planilha).
   var DEFEITOS = [
     ['Q1','Peça batida'],
+    ['Q65','Bordo madeirado não quebrado a quina'],
+    ['Q66','Falta pintar o vão padrão'],
     ['Q72','Pintura escorrida'],
     ['Q73','Peça na cor errada'],
+    ['Q74','Peça fora de tonalidade'],
+    ['Q76','Peça sem pintura'],
+    ['Q77','Empapelamento incorreto'],
+    ['Q79','Pintura manchada'],
+    ['Q80','Pintura desplacando'],
     ['Q81','Pintura com impureza'],
     ['Q86','Falta calafetação Paris'],
+    ['Q87','Cola da etiqueta'],
     ['Q88','Marca de cola da lixa na peça'],
+    ['Q92','Pintura áspera'],
     ['Q94','Buraco na peça'],
     ['Q95','Preparação incorreta'],
+    ['Q96','Pintura com falha'],
     ['Q99','Bordo descolado'],
+    ['Q109','Medida errada (espessura / tamanho)'],
+    ['Q111','Usinagem serrilhada'],
     ['Q118','Falta de bordo'],
     ['Q120','Bordo aberto'],
     ['Q126','Bordo quebrado'],
     ['Q147','Falta de identificação (etiqueta)'],
+    ['Q154','Peça na pilha errada (outro acabamento)'],
     ['Q156','Peça batida do retrabalho'],
     ['Q157','Peça do retrabalho sem identificação'],
     ['Q170','Limpeza da esteira Sputzza'],
-    ['Q179','Etiqueta colocada do lado errado']
+    ['Q179','Etiqueta colocada do lado errado'],
+    ['Q201','Risco na peça'],
+    ['Q202','Marca da etiqueta na peça'],
+    ['Q206','Marca do rolo'],
+    ['Q207','Peça queimada']
   ];
   var DESC = {}; DEFEITOS.forEach(function (d) { DESC[d[0]] = d[1]; });
 
@@ -161,23 +187,40 @@
     cont.appendChild(row);
   });
 
+  // Códigos do setor escolhido (nenhum enquanto o setor não for escolhido)
+  function codigosSetor() { var s = setorPorId(selSetor.value); return s ? s.cods : []; }
+  function mostraCodigos() {
+    var cods = codigosSetor();
+    DEFEITOS.forEach(function (d) {
+      var vis = cods.indexOf(d[0]) >= 0;
+      $('row-' + d[0]).hidden = !vis;
+      if (!vis) $('q-' + d[0]).value = ''; // código de outro setor não vai junto no envio
+    });
+    $('def-vazio').hidden = cods.length > 0;
+    atualizaTotais();
+  }
   function qtdDefeitos() {
-    var o = {}; DEFEITOS.forEach(function (d) { var v = parseInt($('q-' + d[0]).value, 10); if (v > 0) o[d[0]] = v; }); return o;
+    var o = {}; codigosSetor().forEach(function (c) { var v = parseInt($('q-' + c).value, 10); if (v > 0) o[c] = v; }); return o;
   }
   function somaRuins(o) { var t = 0; for (var k in o) t += o[k]; return t; }
-  // Produção: número de peças, ou null quando não deu para contar (caixa marcada).
-  function semContagem() { return $('semprod').checked; }
-  function producao() { if (semContagem()) return null; var v = parseInt($('producao').value, 10); return isNaN(v) ? null : v; }
-  $('semprod').addEventListener('change', function () {
-    var inp = $('producao'); inp.disabled = semContagem();
-    if (semContagem()) inp.value = '';
+  // Produção: contada em peças (uma a uma) ou em pilhas (várias peças).
+  function unidade() { return $('un-pilha').checked ? 'Pilha' : 'Peça'; }
+  function producao() { var v = parseInt($('producao').value, 10); return isNaN(v) ? null : v; }
+  function atualizaUnidade() {
+    var pilha = unidade() === 'Pilha';
+    $('prod-l').textContent = pilha ? 'Produção total (pilhas)' : 'Produção total (peças)';
+    $('prod-h').textContent = pilha
+      ? 'Informe quantas pilhas passaram no turno. Os defeitos continuam sendo lançados por peça.'
+      : 'Informe quantas peças passaram no turno, contadas uma a uma.';
     atualizaTotais();
-  });
+  }
+  document.querySelectorAll('input[name="unidade"]').forEach(function (r) { r.addEventListener('change', atualizaUnidade); });
   function atualizaTotais() {
     idAtual = null;
     var o = qtdDefeitos(), r = somaRuins(o), p = producao();
     $('tot-ruins').textContent = nfmt(r);
-    $('tot-pct').textContent = p ? pct(r, p) : '-';
+    // refugo % só faz sentido com produção em peças
+    $('tot-pct').textContent = p && unidade() === 'Peça' ? pct(r, p) : '-';
     DEFEITOS.forEach(function (d) { $('row-' + d[0]).classList.toggle('on', !!o[d[0]]); });
   }
   $('producao').addEventListener('input', atualizaTotais);
@@ -203,7 +246,7 @@
     (s ? s.ops : []).forEach(function (n) { dl.appendChild(h('option', {value: n})); });
     verificaDuplicado();
   }
-  selSetor.addEventListener('change', atualizaOperadores);
+  selSetor.addEventListener('change', function () { atualizaOperadores(); mostraCodigos(); });
 
   // Aviso prévio só funciona com os lançamentos carregados (aparelho com acesso ao Controle).
   // O servidor também avisa depois do envio.
@@ -218,7 +261,7 @@
 
   function travaSetor(id) {
     var s = setorPorId(id); if (!s) return;
-    selSetor.value = id; atualizaOperadores();
+    selSetor.value = id; atualizaOperadores(); mostraCodigos();
     $('setor-lock-txt').textContent = s.nome; $('setor-lock').hidden = false;
     $('setor-label').hidden = true;
     $('setor-unlock').hidden = SETORES.length < 2; // com um só setor não há o que trocar
@@ -292,19 +335,21 @@
     if (!setor) return mostraErro('Escolha o setor.');
     if (!op) return mostraErro('Informe o nome do operador.');
     if (!w) return mostraErro('Informe a data.');
-    if (!semContagem() && (p === null || p < 0)) return mostraErro('Informe a produção total ou marque "Impossibilidade de contar produção diária".');
-    if (p === 0 && ruins > 0) p = null; // 0 com defeitos = produção não contada
-    if (p !== null && ruins > p) return mostraErro('As peças ruins (' + ruins + ') passam da produção total (' + p + '). Confira os números.');
+    var un = unidade();
+    if (p === null || p < 0) return mostraErro('Informe a produção total (' + (un === 'Pilha' ? 'em pilhas' : 'em peças') + ').');
+    if (un === 'Peça' && ruins > p) return mostraErro('As peças ruins (' + ruins + ') passam da produção total (' + p + ' peças). Se contou por pilha, troque para "Pilha".');
     if (processandoFotos) return mostraErro('Aguarde a foto terminar de carregar.');
     if (!idAtual) idAtual = novoId();
     var dados = {id: idAtual, setor: setor.id, operador: op, data: data, turno: turnoAtual(), producao: p,
-      ciclo: null, defeitos: def, obs: $('obs').value.trim(),
+      unidade: un, defeitos: def, obs: $('obs').value.trim(),
       fotos: fotos.map(function (u) { return u.slice(u.indexOf(',') + 1); })};
     var nFotos = dados.fotos.length;
 
     salvando = true; $('enviar').disabled = true; $('enviar').textContent = nFotos ? 'Enviando fotos…' : 'Registrando…';
     api('lancar', {chave: chaveLanc, dados: dados}, nFotos ? 120000 : 25000).then(function (j) {
-      var txt = setor.nome + ' · ' + brData(data) + ' · turno ' + dados.turno + ': ' + (p === null ? 'produção não contada, ' + nfmt(ruins) + ' ruins.' : nfmt(p) + ' peças, ' + nfmt(ruins) + ' ruins (' + pct(ruins, p) + ').');
+      var txt = setor.nome + ' · ' + brData(data) + ' · turno ' + dados.turno + ': ' + (un === 'Pilha'
+        ? nfmt(p) + (p === 1 ? ' pilha, ' : ' pilhas, ') + nfmt(ruins) + ' peças ruins.'
+        : nfmt(p) + ' peças, ' + nfmt(ruins) + ' ruins (' + pct(ruins, p) + ').');
       if (nFotos) txt += ' ' + nFotos + (nFotos > 1 ? ' fotos anexadas.' : ' foto anexada.');
       if (j.repetido) txt += ' (Este lançamento já tinha chegado na primeira tentativa.)';
       else if (j.duplicados > 0) txt += ' Atenção: já havia ' + nfmt(j.duplicados) + ' lançamento(s) deste setor nesta data e turno.';
@@ -322,7 +367,7 @@
 
   $('novo').addEventListener('click', function () {
     DEFEITOS.forEach(function (d) { $('q-' + d[0]).value = ''; });
-    $('producao').value = ''; $('producao').disabled = false; $('semprod').checked = false; $('obs').value = '';
+    $('producao').value = ''; $('obs').value = ''; // a unidade (peça/pilha) fica como estava
     fotos = []; renderFotos();
     if (!turnoTocado) setTurno(turnoSugerido());
     atualizaTotais(); verificaDuplicado();
@@ -388,16 +433,23 @@
       return (!selSem.value || chaveSem(r) === selSem.value) && (!selFS.value || r.setor === selFS.value) && (!selFT.value || r.turno === selFT.value);
     });
   }
+  function textoProd(r) {
+    if (r.producao == null) return 'Não contada';
+    return r.unidade === 'Pilha' ? nfmt(r.producao) + (Number(r.producao) === 1 ? ' pilha' : ' pilhas') : nfmt(r.producao);
+  }
   function renderControle() {
-    var lista = filtrados(), prod = 0, ruins = 0, ruinsContados = 0, porCod = {};
+    var lista = filtrados(), prod = 0, pilhas = 0, ruins = 0, ruinsContados = 0, porCod = {};
     lista.forEach(function (r) {
       ruins += Number(r.ruins) || 0;
-      if (r.producao != null) { prod += Number(r.producao) || 0; ruinsContados += Number(r.ruins) || 0; }
+      if (r.producao == null) {} // lançamento antigo sem contagem
+      else if (r.unidade === 'Pilha') pilhas += Number(r.producao) || 0;
+      else { prod += Number(r.producao) || 0; ruinsContados += Number(r.ruins) || 0; }
       var d = r.defeitos || {};
       for (var k in d) if (Object.prototype.hasOwnProperty.call(DESC, k)) porCod[k] = (porCod[k] || 0) + (Number(d[k]) || 0);
     });
     $('k-n').textContent = nfmt(lista.length); $('k-prod').textContent = nfmt(prod);
-    $('k-ruins').textContent = nfmt(ruins); $('k-pct').textContent = pct(ruinsContados, prod); // refugo só onde a produção foi contada
+    $('k-pilhas').textContent = pilhas ? '+ ' + nfmt(pilhas) + (pilhas === 1 ? ' pilha' : ' pilhas') : '';
+    $('k-ruins').textContent = nfmt(ruins); $('k-pct').textContent = pct(ruinsContados, prod); // refugo só onde a produção foi contada em peças
 
     var par = $('pareto'); par.textContent = '';
     var cods = Object.keys(porCod).filter(function (k) { return porCod[k] > 0; }).sort(function (a, b) { return porCod[b] - porCod[a]; });
@@ -415,8 +467,8 @@
     lista.slice(0, 200).forEach(function (r) {
       tb.appendChild(h('tr', null,
         h('td', null, brData(r.data)), h('td', null, String(r.setorNome || r.setor || '')), h('td', null, String(r.turno || '')),
-        h('td', null, String(r.operador || '')), h('td', {class: 'num'}, r.producao == null ? 'Não contada' : nfmt(r.producao)), h('td', {class: 'num'}, nfmt(r.ruins)),
-        h('td', {class: 'num'}, r.producao == null ? '-' : pct(Number(r.ruins) || 0, Number(r.producao) || 0)),
+        h('td', null, String(r.operador || '')), h('td', {class: 'num'}, textoProd(r)), h('td', {class: 'num'}, nfmt(r.ruins)),
+        h('td', {class: 'num'}, r.producao == null || r.unidade === 'Pilha' ? '-' : pct(Number(r.ruins) || 0, Number(r.producao) || 0)),
         h('td', {class: 'num'}, Number(r.fotos) > 0 ? nfmt(r.fotos) : '-')));
     });
     var tv = $('tvazio');
@@ -431,8 +483,11 @@
   // Exportação CSV (com proteção contra fórmulas ao abrir no Excel)
   $('exportar').addEventListener('click', function () {
     var lista = filtrados();
-    var head = ['Data','Ano','Semana','Setor','Turno','Operador','Produção','Peças ruins','Refugo %']
-      .concat(DEFEITOS.map(function (d) { return d[0] + ' ' + d[1]; }), ['Observação', 'Fotos', 'Registrado em']);
+    // com um setor filtrado, só as colunas dos códigos daquele setor
+    var sf = setorPorId(selFS.value);
+    var cols = sf ? DEFEITOS.filter(function (d) { return sf.cods.indexOf(d[0]) >= 0; }) : DEFEITOS;
+    var head = ['Data','Ano','Semana','Setor','Turno','Operador','Produção','Unidade','Peças ruins','Refugo %']
+      .concat(cols.map(function (d) { return d[0] + ' ' + d[1]; }), ['Observação', 'Fotos', 'Registrado em']);
     function esc(v) {
       v = v == null ? '' : String(v);
       if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
@@ -441,9 +496,11 @@
     var linhas = [head.map(esc).join(';')];
     lista.forEach(function (r) {
       var d = r.defeitos || {};
-      linhas.push([brData(r.data), r.ano, r.semana, r.setorNome || r.setor, r.turno, r.operador, r.producao == null ? 'Não contada' : r.producao, r.ruins,
-        r.producao > 0 ? (r.ruins / r.producao * 100).toFixed(1).replace('.', ',') : '']
-        .concat(DEFEITOS.map(function (x) { return d[x[0]] || ''; }), [r.obs || '', Number(r.fotos) || 0, r.criadoEm || ''])
+      var pecas = r.producao != null && r.unidade !== 'Pilha';
+      linhas.push([brData(r.data), r.ano, r.semana, r.setorNome || r.setor, r.turno, r.operador, r.producao == null ? 'Não contada' : r.producao,
+        r.producao == null ? '' : (r.unidade || 'Peça'), r.ruins,
+        pecas && r.producao > 0 ? (r.ruins / r.producao * 100).toFixed(1).replace('.', ',') : '']
+        .concat(cols.map(function (x) { return d[x[0]] || ''; }), [r.obs || '', Number(r.fotos) || 0, r.criadoEm || ''])
         .map(esc).join(';'));
     });
     var blob = new Blob(['\ufeff' + linhas.join('\r\n')], {type: 'text/csv;charset=utf-8'});
@@ -502,7 +559,7 @@
   window.addEventListener('hashchange', aplicaHash);
 
   // ---------- Inicialização ----------
-  $('data').value = hoje(); setTurno(turnoSugerido()); atualizaSemana(); atualizaTotais();
+  $('data').value = hoje(); setTurno(turnoSugerido()); atualizaSemana(); mostraCodigos(); atualizaUnidade();
   atualizaSemanas();
   verificaChave();
   aplicaHash();
