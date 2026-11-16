@@ -11,19 +11,19 @@
 
   // Piloto: 5 setores com um QR code único (o operador escolhe o setor no formulário).
   // Também dá para gerar um link com o setor já escolhido: .../#polimento&k=CHAVE
-  // ops = sugestões de nome; o campo continua aceitando qualquer nome digitado.
+  // ops = sugestões de nome (planilha BuyOff - Relação de Nomes por Máquina); o campo aceita qualquer nome digitado.
   // cods = códigos Q que aparecem para o setor (tirados do Diário de Produção de papel de cada setor).
   // Mesma lista do Code.gs.
   var SETORES = [
-    {id:'tagliabue', nome:'TAGLIABUE', ops:['Maicon da Silva Souza','Fernando Maciel'],
+    {id:'tagliabue', nome:'TAGLIABUE', ops:['Fernando Maciel'],
       cods:['Q1','Q72','Q86','Q94','Q95','Q99','Q118','Q120','Q126','Q147','Q156','Q157','Q170']},
-    {id:'ibotic', nome:'IBOTIC', ops:['Adeilton','Dhennyo','Luciani','Matheus','Erick','Mauro'],
+    {id:'ibotic', nome:'IBOTIC', ops:['Pablo','Mateus','Pedro','Luiz Fernando','Jonatan','Richard'],
       cods:['Q1','Q72','Q73','Q81','Q88','Q94','Q95','Q120','Q179']},
-    {id:'polimento', nome:'POLIMENTO', ops:['Jair Magalhães de Oliveira','Tiago da Silva Souza','Aparecido Santos de Alegria'],
+    {id:'polimento', nome:'POLIMENTO', ops:['Thiago','Erivelton'],
       cods:['Q1','Q72','Q73','Q74','Q76','Q77','Q79','Q80','Q81','Q94','Q95','Q99']},
-    {id:'madeirado-uv', nome:'MADEIRADO UV', ops:['Paulo','Jeferson','Felipe'],
+    {id:'madeirado-uv', nome:'MADEIRADO UV', ops:['Samuel de Jesus','Marcos'],
       cods:['Q1','Q65','Q66','Q79','Q81','Q88','Q92','Q94','Q95','Q96','Q99','Q147','Q201','Q202','Q206','Q207']},
-    {id:'madeirado-colorido', nome:'MADEIRADO COLORIDO', ops:['Elias','José Edu Andrade Siqueira'],
+    {id:'madeirado-colorido', nome:'MADEIRADO COLORIDO', ops:['Samuel de Jesus','Marcos'],
       cods:['Q1','Q79','Q80','Q81','Q87','Q88','Q94','Q95','Q99','Q109','Q111','Q126','Q147','Q154']}
   ];
   // Todos os códigos do piloto, em ordem numérica crescente (mesma lista e ordem do Code.gs;
