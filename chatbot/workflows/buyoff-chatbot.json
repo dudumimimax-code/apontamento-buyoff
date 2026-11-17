@@ -1,0 +1,250 @@
+{
+  "id": "BuyOffChatbot001",
+  "name": "Buy Off · Chatbot de relatórios (WhatsApp)",
+  "nodes": [
+    {
+      "id": "b0f4a3c2-0001-4e6a-9a51-000000000001",
+      "name": "WAHA: mensagem recebida",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "waha-buyoff",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "b0f4a3c2-0001-4e6a-9a51-0000000000aa"
+    },
+    {
+      "id": "b0f4a3c2-0002-4e6a-9a51-000000000002",
+      "name": "Todo dia 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b0f4a3c2-0003-4e6a-9a51-000000000003",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "tokenOk",
+              "type": "boolean",
+              "value": "={{ !!$env.BUYOFF_WEBHOOK_TOKEN && (($json.headers || {})['x-buyoff-token'] === $env.BUYOFF_WEBHOOK_TOKEN) }}"
+            },
+            {
+              "id": "c2",
+              "name": "autorizados",
+              "type": "string",
+              "value": "={{ $env.BUYOFF_AUTORIZADOS || '' }}"
+            },
+            {
+              "id": "c3",
+              "name": "destinos",
+              "type": "string",
+              "value": "={{ $env.BUYOFF_DESTINOS_AGENDADOS || '' }}"
+            },
+            {
+              "id": "c4",
+              "name": "sessao",
+              "type": "string",
+              "value": "={{ $env.WAHA_SESSAO || 'default' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b0f4a3c2-0004-4e6a-9a51-000000000004",
+      "name": "Interpretar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// GERADO por chatbot/build-workflow.js a partir de chatbot/src/nucleo.js.\n// Para mudar a lógica, edite o nucleo.js, rode o build e reimporte (mudanças feitas aqui se perdem).\n\n/*\n * Núcleo do chatbot Buy Off: interpreta o comando e monta o texto do relatório.\n *\n * Funções puras (sem n8n, sem rede): dá para testar com `node chatbot/test/teste.js`.\n * O build-workflow.js copia este arquivo para dentro dos nós \"Code\" do workflow do n8n.\n * Depois de mudar aqui, rode `node chatbot/build-workflow.js` e reimporte o workflow.\n */\n\nvar TZ = 'America/Sao_Paulo';\n\n// Mesmos ids e nomes do app.js / Code.gs. \"apelidos\" = como o pessoal escreve no WhatsApp.\nvar SETORES = [\n  { id: 'tagliabue', nome: 'TAGLIABUE', apelidos: ['tagliabue', 'taglia'] },\n  { id: 'ibotic', nome: 'IBOTIC', apelidos: ['ibotic'] },\n  { id: 'polimento', nome: 'POLIMENTO', apelidos: ['polimento'] },\n  { id: 'madeirado-uv', nome: 'MADEIRADO UV', apelidos: ['madeirado uv', 'madeirado-uv', 'uv'] },\n  { id: 'madeirado-colorido', nome: 'MADEIRADO COLORIDO', apelidos: ['madeirado colorido', 'madeirado-colorido', 'colorido'] }\n];\n\n// Turnos em que cada setor deveria ter lançamento (para o aviso \"Faltando lançamento\").\n// Se um setor não trabalha à noite, deixe só ['Dia'].\nvar TURNOS_ESPERADOS = {\n  'tagliabue': ['Dia', 'Noite'],\n  'ibotic': ['Dia', 'Noite'],\n  'polimento': ['Dia', 'Noite'],\n  'madeirado-uv': ['Dia', 'Noite'],\n  'madeirado-colorido': ['Dia', 'Noite']\n};\n\n// Mesma lista do Code.gs (o servidor devolve só o código; aqui fica a descrição).\nvar DEFEITOS = {\n  Q1: 'Peça batida', Q65: 'Bordo madeirado não quebrado a quina', Q66: 'Falta pintar o vão padrão',\n  Q72: 'Pintura escorrida', Q73: 'Peça na cor errada', Q74: 'Peça fora de tonalidade',\n  Q76: 'Peça sem pintura', Q77: 'Empapelamento incorreto', Q79: 'Pintura manchada',\n  Q80: 'Pintura desplacando', Q81: 'Pintura com impureza', Q86: 'Falta calafetação Paris',\n  Q87: 'Cola da etiqueta', Q88: 'Marca de cola da lixa na peça', Q92: 'Pintura áspera',\n  Q94: 'Buraco na peça', Q95: 'Preparação incorreta', Q96: 'Pintura com falha',\n  Q99: 'Bordo descolado', Q109: 'Medida errada (espessura / tamanho)', Q111: 'Usinagem serrilhada',\n  Q118: 'Falta de bordo', Q120: 'Bordo aberto', Q126: 'Bordo quebrado',\n  Q147: 'Falta de identificação (etiqueta)', Q154: 'Peça na pilha errada (outro acabamento)',\n  Q156: 'Peça batida do retrabalho', Q157: 'Peça do retrabalho sem identificação',\n  Q170: 'Limpeza da esteira Sputzza', Q179: 'Etiqueta colocada do lado errado',\n  Q201: 'Risco na peça', Q202: 'Marca da etiqueta na peça', Q206: 'Marca do rolo', Q207: 'Peça queimada'\n};\n\nvar MAX_DIAS = 92;          // período máximo de uma consulta\nvar DIAS_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];\n\n// ---------------------------------------------------------------------------\n// Datas (sempre 'aaaa-mm-dd', no fuso de São Paulo)\n// ---------------------------------------------------------------------------\n\nfunction hojeISO(agora) {\n  // en-CA formata como aaaa-mm-dd\n  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })\n    .format(agora || new Date());\n}\n\nfunction partes(iso) { var p = iso.split('-').map(Number); return { y: p[0], m: p[1], d: p[2] }; }\nfunction utc(iso) { var p = partes(iso); return Date.UTC(p.y, p.m - 1, p.d); }\nfunction pad(n) { return (n < 10 ? '0' : '') + n; }\nfunction deUtc(ms) { var t = new Date(ms); return t.getUTCFullYear() + '-' + pad(t.getUTCMonth() + 1) + '-' + pad(t.getUTCDate()); }\nfunction somaDias(iso, n) { return deUtc(utc(iso) + n * 864e5); }\nfunction diaDaSemana(iso) { return new Date(utc(iso)).getUTCDay(); } // 0 = domingo\nfunction dias(ini, fim) { return Math.round((utc(fim) - utc(ini)) / 864e5) + 1; }\nfunction br(iso) { var p = partes(iso); return pad(p.d) + '/' + pad(p.m) + '/' + p.y; }\nfunction brCurto(iso) { var p = partes(iso); return pad(p.d) + '/' + pad(p.m); }\n\nfunction semanaIso(iso) {\n  var t = new Date(utc(iso));\n  var dn = (t.getUTCDay() + 6) % 7;\n  t.setUTCDate(t.getUTCDate() - dn + 3);\n  var j4 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));\n  return 1 + Math.round(((t - j4) / 864e5 - 3 + ((j4.getUTCDay() + 6) % 7)) / 7);\n}\n\nfunction segundaDaSemana(iso) { return somaDias(iso, -((diaDaSemana(iso) + 6) % 7)); }\n\n// ---------------------------------------------------------------------------\n// Interpretação do comando\n// ---------------------------------------------------------------------------\n\nfunction normaliza(s) {\n  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')\n    .toLowerCase().replace(/\\s+/g, ' ').trim();\n}\n\n/** Lê \"dd/mm\", \"dd/mm/aa\" ou \"dd/mm/aaaa\". Sem ano: o mais recente que não está no futuro. */\nfunction lerData(dd, mm, aa, hoje) {\n  var d = +dd, m = +mm, y;\n  if (aa) { y = +aa; if (y < 100) y += 2000; } else y = partes(hoje).y;\n  var iso = y + '-' + pad(m) + '-' + pad(d);\n  var t = new Date(utc(iso));\n  if (m < 1 || m > 12 || t.getUTCDate() !== d || t.getUTCMonth() !== m - 1) return null;\n  if (!aa && iso > hoje) iso = (y - 1) + '-' + pad(m) + '-' + pad(d);\n  return iso;\n}\n\n/**\n * Transforma a mensagem num comando.\n * Retorna { tipo: 'ajuda' } ou { tipo: 'resumo'|'defeitos'|'pendentes', ini, fim, rotulo, setor }\n * ou { tipo: 'erro', msg }.\n */\nfunction interpretar(texto, hoje) {\n  var s = ' ' + normaliza(texto).replace(/^[\\/!#.]+/, '') + ' ';\n\n  // setor (apelidos mais longos primeiro, para \"madeirado uv\" ganhar de \"uv\")\n  var setor = null, lista = [];\n  SETORES.forEach(function (st) { st.apelidos.forEach(function (a) { lista.push([a, st.id]); }); });\n  lista.sort(function (a, b) { return b[0].length - a[0].length; });\n  for (var i = 0; i < lista.length && !setor; i++) {\n    var re = new RegExp('(^|[^a-z0-9])' + lista[i][0].replace(/[-]/g, '\\\\-') + '(?=[^a-z0-9]|$)');\n    if (re.test(s)) { setor = lista[i][1]; s = s.replace(re, '$1 '); }\n  }\n\n  // datas explícitas\n  var datas = [], m, reData = /(\\d{1,2})[\\/.-](\\d{1,2})(?:[\\/.-](\\d{2}|\\d{4}))?(?!\\d)/g;\n  while ((m = reData.exec(s)) && datas.length < 3) {\n    var iso = lerData(m[1], m[2], m[3], hoje);\n    if (!iso) return { tipo: 'erro', msg: 'Data inválida: ' + m[0] };\n    datas.push(iso);\n  }\n  s = s.replace(reData, ' ');\n\n  var palavras = s.split(/[^a-z0-9]+/).filter(Boolean);\n  function tem() { for (var j = 0; j < arguments.length; j++) if (palavras.indexOf(arguments[j]) >= 0) return true; return false; }\n\n  if (!palavras.length && !datas.length && !setor) return { tipo: 'ajuda' };\n  if (tem('ajuda', 'menu', 'help', 'comandos', 'oi', 'ola', 'bom', 'boa', 'start')) return { tipo: 'ajuda' };\n\n  var tipo = 'resumo';\n  if (tem('defeito', 'defeitos', 'codigos', 'codigo', 'top')) tipo = 'defeitos';\n  else if (tem('pendente', 'pendentes', 'pendencia', 'pendencias', 'faltando', 'falta', 'faltam')) tipo = 'pendentes';\n\n  var anterior = tem('passada', 'passado', 'anterior', 'ultima', 'ultimo');\n  var ini, fim, rotulo;\n  if (datas.length >= 2) {\n    ini = datas[0] < datas[1] ? datas[0] : datas[1];\n    fim = datas[0] < datas[1] ? datas[1] : datas[0];\n    rotulo = brCurto(ini) + ' a ' + br(fim);\n  } else if (datas.length === 1) {\n    ini = fim = datas[0];\n    rotulo = DIAS_SEM[diaDaSemana(ini)] + ' ' + br(ini);\n  } else if (tem('ontem')) {\n    ini = fim = somaDias(hoje, -1);\n    rotulo = 'Ontem · ' + DIAS_SEM[diaDaSemana(ini)] + ' ' + br(ini);\n  } else if (tem('semana', 'semanal')) {\n    ini = segundaDaSemana(hoje);\n    if (anterior) { ini = somaDias(ini, -7); fim = somaDias(ini, 6); } else fim = hoje;\n    rotulo = 'Semana ' + semanaIso(ini) + ' · ' + brCurto(ini) + ' a ' + br(fim);\n  } else if (tem('mes', 'mensal')) {\n    var p = partes(hoje);\n    if (anterior) {\n      var y = p.m === 1 ? p.y - 1 : p.y, mm = p.m === 1 ? 12 : p.m - 1;\n      ini = y + '-' + pad(mm) + '-01'; fim = somaDias(p.y + '-' + pad(p.m) + '-01', -1);\n    } else { ini = p.y + '-' + pad(p.m) + '-01'; fim = hoje; }\n    rotulo = 'Mês ' + pad(partes(ini).m) + '/' + partes(ini).y + ' · ' + brCurto(ini) + ' a ' + br(fim);\n  } else if (tem('hoje', 'dia', 'agora', 'resumo', 'relatorio', 'defeito', 'defeitos', 'codigos', 'codigo', 'top',\n                 'pendente', 'pendentes', 'pendencia', 'pendencias', 'faltando', 'falta', 'faltam') || setor) {\n    ini = fim = hoje;\n    rotulo = 'Hoje · ' + DIAS_SEM[diaDaSemana(ini)] + ' ' + br(ini);\n  } else {\n    return { tipo: 'ajuda', naoEntendi: true };\n  }\n\n  if (ini > hoje) return { tipo: 'erro', msg: 'A data ' + br(ini) + ' ainda não chegou.' };\n  if (fim > hoje) fim = hoje;\n  if (dias(ini, fim) > MAX_DIAS) return { tipo: 'erro', msg: 'Período grande demais (máximo ' + MAX_DIAS + ' dias).' };\n  if (tipo === 'pendentes' && ini !== fim) { ini = fim; rotulo = DIAS_SEM[diaDaSemana(fim)] + ' ' + br(fim); }\n\n  return { tipo: tipo, ini: ini, fim: fim, rotulo: rotulo, setor: setor };\n}\n\n// ---------------------------------------------------------------------------\n// Cálculo\n// ---------------------------------------------------------------------------\n\nfunction filtrar(registros, cmd) {\n  return (registros || []).filter(function (r) {\n    return r && r.data >= cmd.ini && r.data <= cmd.fim && (!cmd.setor || r.setor === cmd.setor);\n  });\n}\n\n/**\n * Soma um conjunto de lançamentos.\n * Refugo % = ruins / produção, só com lançamentos contados em peças\n * (em pilhas não dá para comparar, como no formulário e na planilha).\n */\nfunction agrega(regs) {\n  var a = { n: 0, pecas: 0, pilhas: 0, ruins: 0, ruinsPeca: 0, defeitos: {}, turnos: {} };\n  regs.forEach(function (r) {\n    a.n++;\n    a.ruins += r.ruins || 0;\n    a.turnos[r.turno] = (a.turnos[r.turno] || 0) + 1;\n    if (r.unidade === 'Pilha') a.pilhas += r.producao || 0;\n    else if (r.producao !== null && r.producao !== undefined) { a.pecas += r.producao; a.ruinsPeca += r.ruins || 0; }\n    Object.keys(r.defeitos || {}).forEach(function (c) { a.defeitos[c] = (a.defeitos[c] || 0) + r.defeitos[c]; });\n  });\n  a.refugo = a.pecas > 0 ? a.ruinsPeca / a.pecas : null;\n  return a;\n}\n\nfunction topDefeitos(defs, n) {\n  return Object.keys(defs).map(function (c) { return [c, defs[c]]; })\n    .sort(function (a, b) { return b[1] - a[1] || Number(a[0].slice(1)) - Number(b[0].slice(1)); })\n    .slice(0, n);\n}\n\n// ---------------------------------------------------------------------------\n// Texto (formatação do WhatsApp: *negrito*, _itálico_)\n// ---------------------------------------------------------------------------\n\nfunction num(n) { return String(Math.round(n || 0)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.'); }\nfunction pct(x) { return x === null || x === undefined ? '-' : (x * 100).toFixed(1).replace('.', ',') + '%'; }\nfunction nomeSetor(id) { for (var i = 0; i < SETORES.length; i++) if (SETORES[i].id === id) return SETORES[i].nome; return id; }\nfunction descDefeito(c) { return DEFEITOS[c] ? c + ' ' + DEFEITOS[c] : c; }\n\nfunction linhaProducao(a) {\n  var p = [];\n  if (a.pecas || !a.pilhas) p.push(num(a.pecas) + ' pç');\n  if (a.pilhas) p.push(num(a.pilhas) + (a.pilhas === 1 ? ' pilha' : ' pilhas'));\n  p.push(num(a.ruins) + ' ruins');\n  return p.join(' · ');\n}\n\nfunction cabecalho(cmd, titulo) {\n  return '📊 *' + titulo + '*' + (cmd.setor ? ' · ' + nomeSetor(cmd.setor) : '') + '\\n_' + cmd.rotulo + '_';\n}\n\n/** Setor/turno sem nenhum lançamento no dia. */\nfunction faltando(registros, dia) {\n  var out = [];\n  SETORES.forEach(function (st) {\n    var t = (TURNOS_ESPERADOS[st.id] || []).filter(function (turno) {\n      return !registros.some(function (r) { return r.data === dia && r.setor === st.id && r.turno === turno; });\n    });\n    if (t.length) out.push({ setor: st.id, turnos: t });\n  });\n  return out;\n}\n\nfunction textoFaltando(registros, cmd, hoje) {\n  if (cmd.ini !== cmd.fim) return '';\n  var f = faltando(registros, cmd.fim).filter(function (x) { return !cmd.setor || x.setor === cmd.setor; });\n  if (!f.length) return '';\n  var titulo = cmd.fim === hoje ? 'Ainda sem lançamento hoje' : 'Sem lançamento';\n  return '⚠️ *' + titulo + ':* ' + f.map(function (x) {\n    return nomeSetor(x.setor) + ' (' + x.turnos.join(', ') + ')';\n  }).join(' · ');\n}\n\nfunction relatorioResumo(cmd, registros, hoje) {\n  var regs = filtrar(registros, cmd);\n  var linhas = [cabecalho(cmd, 'Buy Off · Pintura'), ''];\n  var total = agrega(regs);\n\n  if (!regs.length) {\n    linhas.push('Nenhum lançamento no período.');\n  } else {\n    linhas.push('*Total:* ' + linhaProducao(total) + (total.refugo !== null ? ' · *refugo ' + pct(total.refugo) + '*' : ''));\n    linhas.push(total.n + (total.n === 1 ? ' lançamento' : ' lançamentos') +\n      (total.pilhas ? ' _(refugo % só conta produção em peças)_' : ''));\n\n    var setores = cmd.setor ? [cmd.setor] : SETORES.map(function (s) { return s.id; });\n    setores.forEach(function (id) {\n      var rs = regs.filter(function (r) { return r.setor === id; });\n      linhas.push('');\n      if (!rs.length) { linhas.push('*' + nomeSetor(id) + '* · sem lançamento'); return; }\n      var a = agrega(rs);\n      var marcas = cmd.ini === cmd.fim ? ['Dia', 'Noite'].map(function (t) { return t + (a.turnos[t] ? ' ✓' : ' ✗'); }).join(' ') : '';\n      if (cmd.setor) {\n        linhas.pop(); // o total já é o do setor: não repete o bloco\n        if (marcas) linhas.push('Turnos: ' + marcas);\n      } else {\n        linhas.push('*' + nomeSetor(id) + '* · ' + (a.refugo !== null ? 'refugo ' + pct(a.refugo) : 'em pilhas'));\n        linhas.push(linhaProducao(a) + (marcas ? ' · ' + marcas : ''));\n      }\n      var top = topDefeitos(a.defeitos, cmd.setor ? 5 : 3);\n      if (top.length) linhas.push('Principais: ' + top.map(function (d) { return descDefeito(d[0]) + ' (' + num(d[1]) + ')'; }).join(' · '));\n\n      if (cmd.setor) {\n        ['Dia', 'Noite'].forEach(function (t) {\n          var at = agrega(rs.filter(function (r) { return r.turno === t; }));\n          if (at.n) linhas.push('  ' + t + ': ' + linhaProducao(at) + (at.refugo !== null ? ' · refugo ' + pct(at.refugo) : ''));\n        });\n        if (cmd.ini !== cmd.fim) {\n          linhas.push('', '_Por dia:_');\n          for (var d = cmd.ini; d <= cmd.fim; d = somaDias(d, 1)) {\n            var ad = agrega(rs.filter(function (r) { return r.data === d; }));\n            if (ad.n) linhas.push('  ' + DIAS_SEM[diaDaSemana(d)] + ' ' + brCurto(d) + ': ' + linhaProducao(ad) + (ad.refugo !== null ? ' · ' + pct(ad.refugo) : ''));\n          }\n        }\n      }\n    });\n  }\n\n  var f = textoFaltando(registros, cmd, hoje);\n  if (f) linhas.push('', f);\n  return linhas.join('\\n');\n}\n\nfunction relatorioDefeitos(cmd, registros) {\n  var regs = filtrar(registros, cmd);\n  var a = agrega(regs);\n  var linhas = [cabecalho(cmd, 'Defeitos'), ''];\n  var top = topDefeitos(a.defeitos, 10);\n  if (!top.length) {\n    linhas.push(regs.length ? 'Nenhum defeito lançado no período. 👏' : 'Nenhum lançamento no período.');\n    return linhas.join('\\n');\n  }\n  linhas.push('*' + num(a.ruins) + ' peças ruins*' + (a.refugo !== null ? ' · refugo ' + pct(a.refugo) : ''), '');\n  top.forEach(function (d, i) {\n    linhas.push((i + 1) + '. *' + d[0] + '* ' + (DEFEITOS[d[0]] || '') + ': ' + num(d[1]) + ' (' + pct(a.ruins ? d[1] / a.ruins : 0) + ')');\n  });\n  if (!cmd.setor) {\n    linhas.push('', '_Por setor:_');\n    SETORES.forEach(function (st) {\n      var as = agrega(regs.filter(function (r) { return r.setor === st.id; }));\n      if (as.ruins) linhas.push('  ' + st.nome + ': ' + num(as.ruins) + ' ruins · ' + topDefeitos(as.defeitos, 1).map(function (d) { return d[0]; }).join(''));\n    });\n  }\n  return linhas.join('\\n');\n}\n\nfunction relatorioPendentes(cmd, registros, hoje) {\n  var f = textoFaltando(registros, cmd, hoje);\n  return cabecalho(cmd, 'Lançamentos') + '\\n\\n' + (f || '✅ Todos os setores e turnos já lançaram.');\n}\n\nfunction ajuda(naoEntendi) {\n  return (naoEntendi ? 'Não entendi. ' : '') + '🤖 *Buy Off · Pintura*\\n' +\n    'Mande uma destas mensagens:\\n\\n' +\n    '*hoje* · *ontem* · *semana* · *semana passada* · *mes* · *mes passado*\\n' +\n    '*17/11* (um dia) · *10/11 a 16/11* (período)\\n\\n' +\n    'Acrescente o setor para detalhar: *hoje ibotic*, *semana polimento*, *ontem uv*, *mes colorido*, *hoje tagliabue*\\n\\n' +\n    '*defeitos semana* · ranking dos códigos Q\\n' +\n    '*pendentes* · quem ainda não lançou hoje\\n\\n' +\n    '_Em grupo, comece com barra: /hoje_';\n}\n\n/** Monta a resposta final. registros = lista devolvida pelo Apps Script (acao listar). */\nfunction responder(cmd, registros, hoje) {\n  if (cmd.tipo === 'ajuda') return ajuda(cmd.naoEntendi);\n  if (cmd.tipo === 'erro') return '⚠️ ' + cmd.msg + '\\n\\nMande *ajuda* para ver os comandos.';\n  if (cmd.tipo === 'defeitos') return relatorioDefeitos(cmd, registros);\n  if (cmd.tipo === 'pendentes') return relatorioPendentes(cmd, registros, hoje);\n  return relatorioResumo(cmd, registros, hoje);\n}\n\n// ---------------------------------------------------------------------------\n// WhatsApp: quem mandou e se pode receber os números\n// ---------------------------------------------------------------------------\n\n/** Variantes de um número brasileiro com e sem o 9 do celular (o WhatsApp às vezes guarda sem). */\nfunction variantesNumero(dig) {\n  var v = [dig];\n  if (/^55\\d{2}9\\d{8}$/.test(dig)) v.push(dig.slice(0, 4) + dig.slice(5));\n  if (/^55\\d{2}[6-9]\\d{7}$/.test(dig)) v.push(dig.slice(0, 4) + '9' + dig.slice(4));\n  return v;\n}\n\n/** Lê a lista de autorizados: números (só dígitos) ou ids completos (…@c.us, …@lid, …@g.us). */\nfunction lerAutorizados(texto) {\n  var ids = {}, numeros = {};\n  String(texto || '').split(/[,;\\s]+/).filter(Boolean).forEach(function (x) {\n    x = x.toLowerCase();\n    if (x.indexOf('@') >= 0) ids[x] = true;\n    else { var d = x.replace(/\\D/g, ''); if (d.length >= 10) variantesNumero(d).forEach(function (v) { numeros[v] = true; }); }\n  });\n  return { ids: ids, numeros: numeros };\n}\n\n/** Todos os ids que podem identificar quem escreveu (o formato muda conforme o engine do WAHA). */\nfunction idsRemetente(p) {\n  var c = [p.participant, p.author, p.from];\n  var dk = (p._data && p._data.key) || {};\n  c.push(dk.participant, dk.participantAlt, dk.participantPn, dk.senderPn, dk.remoteJid, dk.remoteJidAlt);\n  var inf = (p._data && p._data.Info) || {};\n  c.push(inf.Sender, inf.SenderAlt);\n  if (p._data && p._data.id) c.push(p._data.id.participant);\n  return c.filter(function (x) { return typeof x === 'string' && x && !/@g\\.us$/.test(x) && !/@broadcast$/.test(x); })\n    .map(function (x) { return x.toLowerCase().replace(/:\\d+(?=@)/, ''); });\n}\n\nfunction autorizado(aut, chatId, remetentes) {\n  if (aut.ids[String(chatId).toLowerCase()]) return true;\n  return remetentes.some(function (id) {\n    if (aut.ids[id]) return true;\n    if (/@lid$/.test(id)) return false; // id interno do WhatsApp, não é telefone\n    var d = id.split('@')[0].replace(/\\D/g, '');\n    return !!aut.numeros[d];\n  });\n}\n\n/**\n * Decide o que fazer com um evento do WAHA.\n * Retorna null (ignorar) ou { chatId, texto, msgId } quando é para responder.\n */\nfunction lerEvento(ev, autorizadosTexto) {\n  if (!ev || (ev.event !== 'message' && ev.event !== 'message.any')) return null;\n  var p = ev.payload || {};\n  if (p.fromMe) return null;\n  var texto = typeof p.body === 'string' ? p.body.trim() : '';\n  if (!texto || texto.length > 200) return null;\n  var chatId = String(p.from || '');\n  if (!chatId || /@broadcast$/.test(chatId) || /@newsletter$/.test(chatId)) return null;\n  var grupo = /@g\\.us$/.test(chatId);\n  if (grupo && !/^[\\/!]/.test(texto)) return null; // em grupo só responde a comandos com barra\n  var rem = idsRemetente(p);\n  if (!autorizado(lerAutorizados(autorizadosTexto), chatId, rem)) return { negado: true, chatId: chatId, remetentes: rem };\n  return { chatId: chatId, texto: texto, msgId: p.id || null };\n}\n\n// ===================== nó: Interpretar =====================\nconst cfg = $input.first().json;\nconst hoje = hojeISO();\nconst sessao = cfg.sessao || \"default\";\n\nif (cfg.headers || cfg.body) {\n  // Veio do WAHA (webhook). O token prova que foi o nosso WAHA que chamou.\n  if (!cfg.tokenOk) throw new Error(\"Webhook recusado: cabeçalho X-Buyoff-Token ausente ou errado.\");\n  const ev = cfg.body || {};\n  if (ev.session && ev.session !== sessao) return [];\n  const m = lerEvento(ev, cfg.autorizados);\n  if (!m) return [];\n  if (m.negado) {\n    // Ninguém de fora recebe resposta. Para liberar, ponha um destes ids em BUYOFF_AUTORIZADOS:\n    console.log(\"Mensagem de remetente não autorizado:\", m.chatId, m.remetentes.join(\", \"));\n    return [];\n  }\n  return [{ json: { chatId: m.chatId, replyTo: m.msgId, session: sessao, agendado: false, cmd: interpretar(m.texto, hoje) } }];\n}\n\n// Disparo agendado: relatório de ontem para cada destino (e o da semana passada às segundas).\nconst destinos = String(cfg.destinos || \"\").split(/[,;\\s]+/).filter(d => /@(c\\.us|g\\.us|lid)$/.test(d));\nconst ontem = somaDias(hoje, -1);\nconst itens = [];\nfor (const chatId of destinos) {\n  // domingo costuma não ter produção: só manda se houver lançamento\n  itens.push({ json: { chatId, session: sessao, agendado: true, pularSeVazio: diaDaSemana(ontem) === 0, cmd: interpretar(\"ontem\", hoje) } });\n  if (diaDaSemana(hoje) === 1) itens.push({ json: { chatId, session: sessao, agendado: true, cmd: interpretar(\"semana passada\", hoje) } });\n}\nreturn itens;"
+      }
+    },
+    {
+      "id": "b0f4a3c2-0005-4e6a-9a51-000000000005",
+      "name": "Buscar lançamentos (planilha)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BUYOFF_APPS_SCRIPT_URL }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ JSON.stringify({ acao: 'listar', chave: $env.BUYOFF_CHAVE_CONTROLE }) }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b0f4a3c2-0006-4e6a-9a51-000000000006",
+      "name": "Montar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// GERADO por chatbot/build-workflow.js a partir de chatbot/src/nucleo.js.\n// Para mudar a lógica, edite o nucleo.js, rode o build e reimporte (mudanças feitas aqui se perdem).\n\n/*\n * Núcleo do chatbot Buy Off: interpreta o comando e monta o texto do relatório.\n *\n * Funções puras (sem n8n, sem rede): dá para testar com `node chatbot/test/teste.js`.\n * O build-workflow.js copia este arquivo para dentro dos nós \"Code\" do workflow do n8n.\n * Depois de mudar aqui, rode `node chatbot/build-workflow.js` e reimporte o workflow.\n */\n\nvar TZ = 'America/Sao_Paulo';\n\n// Mesmos ids e nomes do app.js / Code.gs. \"apelidos\" = como o pessoal escreve no WhatsApp.\nvar SETORES = [\n  { id: 'tagliabue', nome: 'TAGLIABUE', apelidos: ['tagliabue', 'taglia'] },\n  { id: 'ibotic', nome: 'IBOTIC', apelidos: ['ibotic'] },\n  { id: 'polimento', nome: 'POLIMENTO', apelidos: ['polimento'] },\n  { id: 'madeirado-uv', nome: 'MADEIRADO UV', apelidos: ['madeirado uv', 'madeirado-uv', 'uv'] },\n  { id: 'madeirado-colorido', nome: 'MADEIRADO COLORIDO', apelidos: ['madeirado colorido', 'madeirado-colorido', 'colorido'] }\n];\n\n// Turnos em que cada setor deveria ter lançamento (para o aviso \"Faltando lançamento\").\n// Se um setor não trabalha à noite, deixe só ['Dia'].\nvar TURNOS_ESPERADOS = {\n  'tagliabue': ['Dia', 'Noite'],\n  'ibotic': ['Dia', 'Noite'],\n  'polimento': ['Dia', 'Noite'],\n  'madeirado-uv': ['Dia', 'Noite'],\n  'madeirado-colorido': ['Dia', 'Noite']\n};\n\n// Mesma lista do Code.gs (o servidor devolve só o código; aqui fica a descrição).\nvar DEFEITOS = {\n  Q1: 'Peça batida', Q65: 'Bordo madeirado não quebrado a quina', Q66: 'Falta pintar o vão padrão',\n  Q72: 'Pintura escorrida', Q73: 'Peça na cor errada', Q74: 'Peça fora de tonalidade',\n  Q76: 'Peça sem pintura', Q77: 'Empapelamento incorreto', Q79: 'Pintura manchada',\n  Q80: 'Pintura desplacando', Q81: 'Pintura com impureza', Q86: 'Falta calafetação Paris',\n  Q87: 'Cola da etiqueta', Q88: 'Marca de cola da lixa na peça', Q92: 'Pintura áspera',\n  Q94: 'Buraco na peça', Q95: 'Preparação incorreta', Q96: 'Pintura com falha',\n  Q99: 'Bordo descolado', Q109: 'Medida errada (espessura / tamanho)', Q111: 'Usinagem serrilhada',\n  Q118: 'Falta de bordo', Q120: 'Bordo aberto', Q126: 'Bordo quebrado',\n  Q147: 'Falta de identificação (etiqueta)', Q154: 'Peça na pilha errada (outro acabamento)',\n  Q156: 'Peça batida do retrabalho', Q157: 'Peça do retrabalho sem identificação',\n  Q170: 'Limpeza da esteira Sputzza', Q179: 'Etiqueta colocada do lado errado',\n  Q201: 'Risco na peça', Q202: 'Marca da etiqueta na peça', Q206: 'Marca do rolo', Q207: 'Peça queimada'\n};\n\nvar MAX_DIAS = 92;          // período máximo de uma consulta\nvar DIAS_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];\n\n// ---------------------------------------------------------------------------\n// Datas (sempre 'aaaa-mm-dd', no fuso de São Paulo)\n// ---------------------------------------------------------------------------\n\nfunction hojeISO(agora) {\n  // en-CA formata como aaaa-mm-dd\n  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })\n    .format(agora || new Date());\n}\n\nfunction partes(iso) { var p = iso.split('-').map(Number); return { y: p[0], m: p[1], d: p[2] }; }\nfunction utc(iso) { var p = partes(iso); return Date.UTC(p.y, p.m - 1, p.d); }\nfunction pad(n) { return (n < 10 ? '0' : '') + n; }\nfunction deUtc(ms) { var t = new Date(ms); return t.getUTCFullYear() + '-' + pad(t.getUTCMonth() + 1) + '-' + pad(t.getUTCDate()); }\nfunction somaDias(iso, n) { return deUtc(utc(iso) + n * 864e5); }\nfunction diaDaSemana(iso) { return new Date(utc(iso)).getUTCDay(); } // 0 = domingo\nfunction dias(ini, fim) { return Math.round((utc(fim) - utc(ini)) / 864e5) + 1; }\nfunction br(iso) { var p = partes(iso); return pad(p.d) + '/' + pad(p.m) + '/' + p.y; }\nfunction brCurto(iso) { var p = partes(iso); return pad(p.d) + '/' + pad(p.m); }\n\nfunction semanaIso(iso) {\n  var t = new Date(utc(iso));\n  var dn = (t.getUTCDay() + 6) % 7;\n  t.setUTCDate(t.getUTCDate() - dn + 3);\n  var j4 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));\n  return 1 + Math.round(((t - j4) / 864e5 - 3 + ((j4.getUTCDay() + 6) % 7)) / 7);\n}\n\nfunction segundaDaSemana(iso) { return somaDias(iso, -((diaDaSemana(iso) + 6) % 7)); }\n\n// ---------------------------------------------------------------------------\n// Interpretação do comando\n// ---------------------------------------------------------------------------\n\nfunction normaliza(s) {\n  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')\n    .toLowerCase().replace(/\\s+/g, ' ').trim();\n}\n\n/** Lê \"dd/mm\", \"dd/mm/aa\" ou \"dd/mm/aaaa\". Sem ano: o mais recente que não está no futuro. */\nfunction lerData(dd, mm, aa, hoje) {\n  var d = +dd, m = +mm, y;\n  if (aa) { y = +aa; if (y < 100) y += 2000; } else y = partes(hoje).y;\n  var iso = y + '-' + pad(m) + '-' + pad(d);\n  var t = new Date(utc(iso));\n  if (m < 1 || m > 12 || t.getUTCDate() !== d || t.getUTCMonth() !== m - 1) return null;\n  if (!aa && iso > hoje) iso = (y - 1) + '-' + pad(m) + '-' + pad(d);\n  return iso;\n}\n\n/**\n * Transforma a mensagem num comando.\n * Retorna { tipo: 'ajuda' } ou { tipo: 'resumo'|'defeitos'|'pendentes', ini, fim, rotulo, setor }\n * ou { tipo: 'erro', msg }.\n */\nfunction interpretar(texto, hoje) {\n  var s = ' ' + normaliza(texto).replace(/^[\\/!#.]+/, '') + ' ';\n\n  // setor (apelidos mais longos primeiro, para \"madeirado uv\" ganhar de \"uv\")\n  var setor = null, lista = [];\n  SETORES.forEach(function (st) { st.apelidos.forEach(function (a) { lista.push([a, st.id]); }); });\n  lista.sort(function (a, b) { return b[0].length - a[0].length; });\n  for (var i = 0; i < lista.length && !setor; i++) {\n    var re = new RegExp('(^|[^a-z0-9])' + lista[i][0].replace(/[-]/g, '\\\\-') + '(?=[^a-z0-9]|$)');\n    if (re.test(s)) { setor = lista[i][1]; s = s.replace(re, '$1 '); }\n  }\n\n  // datas explícitas\n  var datas = [], m, reData = /(\\d{1,2})[\\/.-](\\d{1,2})(?:[\\/.-](\\d{2}|\\d{4}))?(?!\\d)/g;\n  while ((m = reData.exec(s)) && datas.length < 3) {\n    var iso = lerData(m[1], m[2], m[3], hoje);\n    if (!iso) return { tipo: 'erro', msg: 'Data inválida: ' + m[0] };\n    datas.push(iso);\n  }\n  s = s.replace(reData, ' ');\n\n  var palavras = s.split(/[^a-z0-9]+/).filter(Boolean);\n  function tem() { for (var j = 0; j < arguments.length; j++) if (palavras.indexOf(arguments[j]) >= 0) return true; return false; }\n\n  if (!palavras.length && !datas.length && !setor) return { tipo: 'ajuda' };\n  if (tem('ajuda', 'menu', 'help', 'comandos', 'oi', 'ola', 'bom', 'boa', 'start')) return { tipo: 'ajuda' };\n\n  var tipo = 'resumo';\n  if (tem('defeito', 'defeitos', 'codigos', 'codigo', 'top')) tipo = 'defeitos';\n  else if (tem('pendente', 'pendentes', 'pendencia', 'pendencias', 'faltando', 'falta', 'faltam')) tipo = 'pendentes';\n\n  var anterior = tem('passada', 'passado', 'anterior', 'ultima', 'ultimo');\n  var ini, fim, rotulo;\n  if (datas.length >= 2) {\n    ini = datas[0] < datas[1] ? datas[0] : datas[1];\n    fim = datas[0] < datas[1] ? datas[1] : datas[0];\n    rotulo = brCurto(ini) + ' a ' + br(fim);\n  } else if (datas.length === 1) {\n    ini = fim = datas[0];\n    rotulo = DIAS_SEM[diaDaSemana(ini)] + ' ' + br(ini);\n  } else if (tem('ontem')) {\n    ini = fim = somaDias(hoje, -1);\n    rotulo = 'Ontem · ' + DIAS_SEM[diaDaSemana(ini)] + ' ' + br(ini);\n  } else if (tem('semana', 'semanal')) {\n    ini = segundaDaSemana(hoje);\n    if (anterior) { ini = somaDias(ini, -7); fim = somaDias(ini, 6); } else fim = hoje;\n    rotulo = 'Semana ' + semanaIso(ini) + ' · ' + brCurto(ini) + ' a ' + br(fim);\n  } else if (tem('mes', 'mensal')) {\n    var p = partes(hoje);\n    if (anterior) {\n      var y = p.m === 1 ? p.y - 1 : p.y, mm = p.m === 1 ? 12 : p.m - 1;\n      ini = y + '-' + pad(mm) + '-01'; fim = somaDias(p.y + '-' + pad(p.m) + '-01', -1);\n    } else { ini = p.y + '-' + pad(p.m) + '-01'; fim = hoje; }\n    rotulo = 'Mês ' + pad(partes(ini).m) + '/' + partes(ini).y + ' · ' + brCurto(ini) + ' a ' + br(fim);\n  } else if (tem('hoje', 'dia', 'agora', 'resumo', 'relatorio', 'defeito', 'defeitos', 'codigos', 'codigo', 'top',\n                 'pendente', 'pendentes', 'pendencia', 'pendencias', 'faltando', 'falta', 'faltam') || setor) {\n    ini = fim = hoje;\n    rotulo = 'Hoje · ' + DIAS_SEM[diaDaSemana(ini)] + ' ' + br(ini);\n  } else {\n    return { tipo: 'ajuda', naoEntendi: true };\n  }\n\n  if (ini > hoje) return { tipo: 'erro', msg: 'A data ' + br(ini) + ' ainda não chegou.' };\n  if (fim > hoje) fim = hoje;\n  if (dias(ini, fim) > MAX_DIAS) return { tipo: 'erro', msg: 'Período grande demais (máximo ' + MAX_DIAS + ' dias).' };\n  if (tipo === 'pendentes' && ini !== fim) { ini = fim; rotulo = DIAS_SEM[diaDaSemana(fim)] + ' ' + br(fim); }\n\n  return { tipo: tipo, ini: ini, fim: fim, rotulo: rotulo, setor: setor };\n}\n\n// ---------------------------------------------------------------------------\n// Cálculo\n// ---------------------------------------------------------------------------\n\nfunction filtrar(registros, cmd) {\n  return (registros || []).filter(function (r) {\n    return r && r.data >= cmd.ini && r.data <= cmd.fim && (!cmd.setor || r.setor === cmd.setor);\n  });\n}\n\n/**\n * Soma um conjunto de lançamentos.\n * Refugo % = ruins / produção, só com lançamentos contados em peças\n * (em pilhas não dá para comparar, como no formulário e na planilha).\n */\nfunction agrega(regs) {\n  var a = { n: 0, pecas: 0, pilhas: 0, ruins: 0, ruinsPeca: 0, defeitos: {}, turnos: {} };\n  regs.forEach(function (r) {\n    a.n++;\n    a.ruins += r.ruins || 0;\n    a.turnos[r.turno] = (a.turnos[r.turno] || 0) + 1;\n    if (r.unidade === 'Pilha') a.pilhas += r.producao || 0;\n    else if (r.producao !== null && r.producao !== undefined) { a.pecas += r.producao; a.ruinsPeca += r.ruins || 0; }\n    Object.keys(r.defeitos || {}).forEach(function (c) { a.defeitos[c] = (a.defeitos[c] || 0) + r.defeitos[c]; });\n  });\n  a.refugo = a.pecas > 0 ? a.ruinsPeca / a.pecas : null;\n  return a;\n}\n\nfunction topDefeitos(defs, n) {\n  return Object.keys(defs).map(function (c) { return [c, defs[c]]; })\n    .sort(function (a, b) { return b[1] - a[1] || Number(a[0].slice(1)) - Number(b[0].slice(1)); })\n    .slice(0, n);\n}\n\n// ---------------------------------------------------------------------------\n// Texto (formatação do WhatsApp: *negrito*, _itálico_)\n// ---------------------------------------------------------------------------\n\nfunction num(n) { return String(Math.round(n || 0)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.'); }\nfunction pct(x) { return x === null || x === undefined ? '-' : (x * 100).toFixed(1).replace('.', ',') + '%'; }\nfunction nomeSetor(id) { for (var i = 0; i < SETORES.length; i++) if (SETORES[i].id === id) return SETORES[i].nome; return id; }\nfunction descDefeito(c) { return DEFEITOS[c] ? c + ' ' + DEFEITOS[c] : c; }\n\nfunction linhaProducao(a) {\n  var p = [];\n  if (a.pecas || !a.pilhas) p.push(num(a.pecas) + ' pç');\n  if (a.pilhas) p.push(num(a.pilhas) + (a.pilhas === 1 ? ' pilha' : ' pilhas'));\n  p.push(num(a.ruins) + ' ruins');\n  return p.join(' · ');\n}\n\nfunction cabecalho(cmd, titulo) {\n  return '📊 *' + titulo + '*' + (cmd.setor ? ' · ' + nomeSetor(cmd.setor) : '') + '\\n_' + cmd.rotulo + '_';\n}\n\n/** Setor/turno sem nenhum lançamento no dia. */\nfunction faltando(registros, dia) {\n  var out = [];\n  SETORES.forEach(function (st) {\n    var t = (TURNOS_ESPERADOS[st.id] || []).filter(function (turno) {\n      return !registros.some(function (r) { return r.data === dia && r.setor === st.id && r.turno === turno; });\n    });\n    if (t.length) out.push({ setor: st.id, turnos: t });\n  });\n  return out;\n}\n\nfunction textoFaltando(registros, cmd, hoje) {\n  if (cmd.ini !== cmd.fim) return '';\n  var f = faltando(registros, cmd.fim).filter(function (x) { return !cmd.setor || x.setor === cmd.setor; });\n  if (!f.length) return '';\n  var titulo = cmd.fim === hoje ? 'Ainda sem lançamento hoje' : 'Sem lançamento';\n  return '⚠️ *' + titulo + ':* ' + f.map(function (x) {\n    return nomeSetor(x.setor) + ' (' + x.turnos.join(', ') + ')';\n  }).join(' · ');\n}\n\nfunction relatorioResumo(cmd, registros, hoje) {\n  var regs = filtrar(registros, cmd);\n  var linhas = [cabecalho(cmd, 'Buy Off · Pintura'), ''];\n  var total = agrega(regs);\n\n  if (!regs.length) {\n    linhas.push('Nenhum lançamento no período.');\n  } else {\n    linhas.push('*Total:* ' + linhaProducao(total) + (total.refugo !== null ? ' · *refugo ' + pct(total.refugo) + '*' : ''));\n    linhas.push(total.n + (total.n === 1 ? ' lançamento' : ' lançamentos') +\n      (total.pilhas ? ' _(refugo % só conta produção em peças)_' : ''));\n\n    var setores = cmd.setor ? [cmd.setor] : SETORES.map(function (s) { return s.id; });\n    setores.forEach(function (id) {\n      var rs = regs.filter(function (r) { return r.setor === id; });\n      linhas.push('');\n      if (!rs.length) { linhas.push('*' + nomeSetor(id) + '* · sem lançamento'); return; }\n      var a = agrega(rs);\n      var marcas = cmd.ini === cmd.fim ? ['Dia', 'Noite'].map(function (t) { return t + (a.turnos[t] ? ' ✓' : ' ✗'); }).join(' ') : '';\n      if (cmd.setor) {\n        linhas.pop(); // o total já é o do setor: não repete o bloco\n        if (marcas) linhas.push('Turnos: ' + marcas);\n      } else {\n        linhas.push('*' + nomeSetor(id) + '* · ' + (a.refugo !== null ? 'refugo ' + pct(a.refugo) : 'em pilhas'));\n        linhas.push(linhaProducao(a) + (marcas ? ' · ' + marcas : ''));\n      }\n      var top = topDefeitos(a.defeitos, cmd.setor ? 5 : 3);\n      if (top.length) linhas.push('Principais: ' + top.map(function (d) { return descDefeito(d[0]) + ' (' + num(d[1]) + ')'; }).join(' · '));\n\n      if (cmd.setor) {\n        ['Dia', 'Noite'].forEach(function (t) {\n          var at = agrega(rs.filter(function (r) { return r.turno === t; }));\n          if (at.n) linhas.push('  ' + t + ': ' + linhaProducao(at) + (at.refugo !== null ? ' · refugo ' + pct(at.refugo) : ''));\n        });\n        if (cmd.ini !== cmd.fim) {\n          linhas.push('', '_Por dia:_');\n          for (var d = cmd.ini; d <= cmd.fim; d = somaDias(d, 1)) {\n            var ad = agrega(rs.filter(function (r) { return r.data === d; }));\n            if (ad.n) linhas.push('  ' + DIAS_SEM[diaDaSemana(d)] + ' ' + brCurto(d) + ': ' + linhaProducao(ad) + (ad.refugo !== null ? ' · ' + pct(ad.refugo) : ''));\n          }\n        }\n      }\n    });\n  }\n\n  var f = textoFaltando(registros, cmd, hoje);\n  if (f) linhas.push('', f);\n  return linhas.join('\\n');\n}\n\nfunction relatorioDefeitos(cmd, registros) {\n  var regs = filtrar(registros, cmd);\n  var a = agrega(regs);\n  var linhas = [cabecalho(cmd, 'Defeitos'), ''];\n  var top = topDefeitos(a.defeitos, 10);\n  if (!top.length) {\n    linhas.push(regs.length ? 'Nenhum defeito lançado no período. 👏' : 'Nenhum lançamento no período.');\n    return linhas.join('\\n');\n  }\n  linhas.push('*' + num(a.ruins) + ' peças ruins*' + (a.refugo !== null ? ' · refugo ' + pct(a.refugo) : ''), '');\n  top.forEach(function (d, i) {\n    linhas.push((i + 1) + '. *' + d[0] + '* ' + (DEFEITOS[d[0]] || '') + ': ' + num(d[1]) + ' (' + pct(a.ruins ? d[1] / a.ruins : 0) + ')');\n  });\n  if (!cmd.setor) {\n    linhas.push('', '_Por setor:_');\n    SETORES.forEach(function (st) {\n      var as = agrega(regs.filter(function (r) { return r.setor === st.id; }));\n      if (as.ruins) linhas.push('  ' + st.nome + ': ' + num(as.ruins) + ' ruins · ' + topDefeitos(as.defeitos, 1).map(function (d) { return d[0]; }).join(''));\n    });\n  }\n  return linhas.join('\\n');\n}\n\nfunction relatorioPendentes(cmd, registros, hoje) {\n  var f = textoFaltando(registros, cmd, hoje);\n  return cabecalho(cmd, 'Lançamentos') + '\\n\\n' + (f || '✅ Todos os setores e turnos já lançaram.');\n}\n\nfunction ajuda(naoEntendi) {\n  return (naoEntendi ? 'Não entendi. ' : '') + '🤖 *Buy Off · Pintura*\\n' +\n    'Mande uma destas mensagens:\\n\\n' +\n    '*hoje* · *ontem* · *semana* · *semana passada* · *mes* · *mes passado*\\n' +\n    '*17/11* (um dia) · *10/11 a 16/11* (período)\\n\\n' +\n    'Acrescente o setor para detalhar: *hoje ibotic*, *semana polimento*, *ontem uv*, *mes colorido*, *hoje tagliabue*\\n\\n' +\n    '*defeitos semana* · ranking dos códigos Q\\n' +\n    '*pendentes* · quem ainda não lançou hoje\\n\\n' +\n    '_Em grupo, comece com barra: /hoje_';\n}\n\n/** Monta a resposta final. registros = lista devolvida pelo Apps Script (acao listar). */\nfunction responder(cmd, registros, hoje) {\n  if (cmd.tipo === 'ajuda') return ajuda(cmd.naoEntendi);\n  if (cmd.tipo === 'erro') return '⚠️ ' + cmd.msg + '\\n\\nMande *ajuda* para ver os comandos.';\n  if (cmd.tipo === 'defeitos') return relatorioDefeitos(cmd, registros);\n  if (cmd.tipo === 'pendentes') return relatorioPendentes(cmd, registros, hoje);\n  return relatorioResumo(cmd, registros, hoje);\n}\n\n// ---------------------------------------------------------------------------\n// WhatsApp: quem mandou e se pode receber os números\n// ---------------------------------------------------------------------------\n\n/** Variantes de um número brasileiro com e sem o 9 do celular (o WhatsApp às vezes guarda sem). */\nfunction variantesNumero(dig) {\n  var v = [dig];\n  if (/^55\\d{2}9\\d{8}$/.test(dig)) v.push(dig.slice(0, 4) + dig.slice(5));\n  if (/^55\\d{2}[6-9]\\d{7}$/.test(dig)) v.push(dig.slice(0, 4) + '9' + dig.slice(4));\n  return v;\n}\n\n/** Lê a lista de autorizados: números (só dígitos) ou ids completos (…@c.us, …@lid, …@g.us). */\nfunction lerAutorizados(texto) {\n  var ids = {}, numeros = {};\n  String(texto || '').split(/[,;\\s]+/).filter(Boolean).forEach(function (x) {\n    x = x.toLowerCase();\n    if (x.indexOf('@') >= 0) ids[x] = true;\n    else { var d = x.replace(/\\D/g, ''); if (d.length >= 10) variantesNumero(d).forEach(function (v) { numeros[v] = true; }); }\n  });\n  return { ids: ids, numeros: numeros };\n}\n\n/** Todos os ids que podem identificar quem escreveu (o formato muda conforme o engine do WAHA). */\nfunction idsRemetente(p) {\n  var c = [p.participant, p.author, p.from];\n  var dk = (p._data && p._data.key) || {};\n  c.push(dk.participant, dk.participantAlt, dk.participantPn, dk.senderPn, dk.remoteJid, dk.remoteJidAlt);\n  var inf = (p._data && p._data.Info) || {};\n  c.push(inf.Sender, inf.SenderAlt);\n  if (p._data && p._data.id) c.push(p._data.id.participant);\n  return c.filter(function (x) { return typeof x === 'string' && x && !/@g\\.us$/.test(x) && !/@broadcast$/.test(x); })\n    .map(function (x) { return x.toLowerCase().replace(/:\\d+(?=@)/, ''); });\n}\n\nfunction autorizado(aut, chatId, remetentes) {\n  if (aut.ids[String(chatId).toLowerCase()]) return true;\n  return remetentes.some(function (id) {\n    if (aut.ids[id]) return true;\n    if (/@lid$/.test(id)) return false; // id interno do WhatsApp, não é telefone\n    var d = id.split('@')[0].replace(/\\D/g, '');\n    return !!aut.numeros[d];\n  });\n}\n\n/**\n * Decide o que fazer com um evento do WAHA.\n * Retorna null (ignorar) ou { chatId, texto, msgId } quando é para responder.\n */\nfunction lerEvento(ev, autorizadosTexto) {\n  if (!ev || (ev.event !== 'message' && ev.event !== 'message.any')) return null;\n  var p = ev.payload || {};\n  if (p.fromMe) return null;\n  var texto = typeof p.body === 'string' ? p.body.trim() : '';\n  if (!texto || texto.length > 200) return null;\n  var chatId = String(p.from || '');\n  if (!chatId || /@broadcast$/.test(chatId) || /@newsletter$/.test(chatId)) return null;\n  var grupo = /@g\\.us$/.test(chatId);\n  if (grupo && !/^[\\/!]/.test(texto)) return null; // em grupo só responde a comandos com barra\n  var rem = idsRemetente(p);\n  if (!autorizado(lerAutorizados(autorizadosTexto), chatId, rem)) return { negado: true, chatId: chatId, remetentes: rem };\n  return { chatId: chatId, texto: texto, msgId: p.id || null };\n}\n\n// ===================== nó: Montar resposta =====================\nconst res = $input.first().json || {};\nconst hoje = hojeISO();\nlet regs = null, erro = null;\nif (res.ok === true && Array.isArray(res.registros)) regs = res.registros;\nelse if (res.erro === \"chave_invalida\") erro = \"A chave de controle do chatbot está errada (BUYOFF_CHAVE_CONTROLE no .env).\";\nelse erro = \"Não consegui ler a planilha agora. Tente de novo em alguns minutos.\";\n\nconst saida = [];\nfor (const it of $(\"Interpretar\").all()) {\n  const c = it.json;\n  const base = { session: c.session, chatId: c.chatId, replyTo: c.replyTo || null };\n  const precisaDados = c.cmd.tipo !== \"ajuda\" && c.cmd.tipo !== \"erro\";\n  if (precisaDados && erro) {\n    if (c.agendado) throw new Error(\"Relatório agendado não enviado: \" + erro + \" Resposta: \" + JSON.stringify(res).slice(0, 300));\n    saida.push({ json: Object.assign(base, { text: \"⚠️ \" + erro }) });\n    continue;\n  }\n  if (c.pularSeVazio && !filtrar(regs, c.cmd).length) continue;\n  saida.push({ json: Object.assign(base, { text: responder(c.cmd, regs, hoje) }) });\n}\nreturn saida;"
+      }
+    },
+    {
+      "id": "b0f4a3c2-0007-4e6a-9a51-000000000007",
+      "name": "Enviar no WhatsApp (WAHA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.WAHA_URL || 'http://waha:3000') + '/api/sendText' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.WAHA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ session: $json.session, chatId: $json.chatId, text: $json.text }, $json.replyTo ? { reply_to: $json.replyTo } : {})) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "WAHA: mensagem recebida": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todo dia 07:00": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Interpretar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar": {
+      "main": [
+        [
+          {
+            "node": "Buscar lançamentos (planilha)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar lançamentos (planilha)": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resposta": {
+      "main": [
+        [
+          {
+            "node": "Enviar no WhatsApp (WAHA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {},
+  "active": false
+}

@@ -1,0 +1,83 @@
+# Chatbot de relatórios do Buy Off no WhatsApp: n8n + WAHA.
+# Guia completo: chatbot/README.md
+#
+#   cp .env.example .env      # e preencha
+#   docker compose up -d
+#
+# Nada fica exposto na rede: as portas abrem só em 127.0.0.1 (a própria máquina).
+# O WAHA fala com o n8n pela rede interna do Docker.
+
+name: buyoff-chatbot
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.47.7
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - TZ=America/Sao_Paulo
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?preencha N8N_ENCRYPTION_KEY no .env}
+      # O workflow lê a configuração abaixo com $env (só nos nós, nunca no navegador).
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      # Execuções guardam nomes de operadores (LGPD): apaga depois de 7 dias.
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+      # Configuração do chatbot (valores no .env)
+      - BUYOFF_APPS_SCRIPT_URL=${BUYOFF_APPS_SCRIPT_URL:?preencha BUYOFF_APPS_SCRIPT_URL no .env}
+      - BUYOFF_CHAVE_CONTROLE=${BUYOFF_CHAVE_CONTROLE:?preencha BUYOFF_CHAVE_CONTROLE no .env}
+      - BUYOFF_WEBHOOK_TOKEN=${BUYOFF_WEBHOOK_TOKEN:?preencha BUYOFF_WEBHOOK_TOKEN no .env}
+      - BUYOFF_AUTORIZADOS=${BUYOFF_AUTORIZADOS:-}
+      - BUYOFF_DESTINOS_AGENDADOS=${BUYOFF_DESTINOS_AGENDADOS:-}
+      - WAHA_URL=http://waha:3000
+      - WAHA_API_KEY=${WAHA_API_KEY:?preencha WAHA_API_KEY no .env}
+      - WAHA_SESSAO=default
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/workflows:ro
+    depends_on:
+      - waha
+
+  waha:
+    # Engine GOWS: não precisa de navegador, usa pouca memória.
+    image: devlikeapro/waha:gows-2026.10.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - TZ=America/Sao_Paulo
+      - WHATSAPP_DEFAULT_ENGINE=GOWS
+      - WAHA_API_KEY=${WAHA_API_KEY:?preencha WAHA_API_KEY no .env}
+      - WAHA_DASHBOARD_ENABLED=True
+      - WAHA_DASHBOARD_USERNAME=${WAHA_PAINEL_USUARIO:-admin}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_PAINEL_SENHA:?preencha WAHA_PAINEL_SENHA no .env}
+      - WHATSAPP_SWAGGER_USERNAME=${WAHA_PAINEL_USUARIO:-admin}
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_PAINEL_SENHA:?preencha WAHA_PAINEL_SENHA no .env}
+      # A versão grátis (Core) tem uma sessão só, chamada "default". Liga sozinha ao subir.
+      - WHATSAPP_START_SESSION=default
+      - WHATSAPP_RESTART_ALL_SESSIONS=True
+      # Cada mensagem recebida vai para o n8n, com o token que prova que veio do WAHA.
+      - WHATSAPP_HOOK_URL=http://n8n:5678/webhook/waha-buyoff
+      - WHATSAPP_HOOK_EVENTS=message
+      - WHATSAPP_HOOK_CUSTOM_HEADERS=X-Buyoff-Token:${BUYOFF_WEBHOOK_TOKEN:?preencha BUYOFF_WEBHOOK_TOKEN no .env}
+      - WAHA_PRINT_QR=False
+      - WAHA_LOG_FORMAT=PRETTY
+      - WAHA_LOG_LEVEL=info
+      - WAHA_MEDIA_STORAGE=LOCAL
+      - WHATSAPP_FILES_LIFETIME=0
+    volumes:
+      - waha_sessions:/app/.sessions
+      - waha_media:/app/.media
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  n8n_data:
+  waha_sessions:
+  waha_media:

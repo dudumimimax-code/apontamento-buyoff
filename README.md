@@ -17,6 +17,7 @@ Celular / tablet  ──►  GitHub Pages (index.html + app.js)
 | `app.js` | Repositório do GitHub (lógica do formulário) |
 | `Code.gs` | Editor do Apps Script da planilha (**não** suba para o GitHub se quiser, mas ele não contém segredos) |
 | `README.md` | Repositório do GitHub (este guia) |
+| `chatbot/` | Chatbot de relatórios no WhatsApp (n8n + WAHA, roda num computador com Docker; guia em [`chatbot/README.md`](chatbot/README.md)) |
 
 ---
 
@@ -110,6 +111,12 @@ Os códigos de defeito ficam em ordem numérica crescente, na mesma ordem no `ap
 - **Download manual:** na planilha, **Arquivo > Fazer download > Microsoft Excel (.xlsx)**.
 - **Pelo formulário:** aba Controle > **Exportar CSV** (abre no Excel com acentos corretos).
 - Correções e exclusões: edite a linha direto na planilha. **Não mude a ordem das colunas** (o servidor depende dela).
+
+---
+
+## Relatórios pelo WhatsApp (opcional)
+
+A pasta [`chatbot/`](chatbot/README.md) tem um chatbot (n8n + WAHA em Docker) que responde no WhatsApp a mensagens como `hoje`, `semana ibotic` ou `defeitos ontem`, e manda o relatório de ontem todo dia às 07:00 para o grupo da produção. Ele lê os dados pela mesma ação `listar` da aba Controle (com a `CHAVE_CONTROLE`), então não precisa mudar o `Code.gs`.
 
 ---
 
