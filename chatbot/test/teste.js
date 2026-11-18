@@ -81,6 +81,95 @@ t('sem lançamentos', function () { assert.ok(/Nenhum lançamento/.test(n.respon
 t('pendentes ontem ok', function () { assert.ok(/Todos os setores/.test(n.responder(cmd('pendentes ontem'), dados, HOJE))); });
 t('erro vira mensagem', function () { assert.ok(/Data inválida/.test(n.responder(cmd('31/02'), dados, HOJE))); });
 
+// ---- relatorio liga, sair desliga ------------------------------------------------
+var AGORA = Date.UTC(2026, 10, 17, 15, 0, 0), MIN = 60000;
+function cs(txt, ativoAte, grupo) { return n.controleSessao(txt, ativoAte, AGORA, !!grupo); }
+t('relatorio liga (maiúscula, minúscula e acento)', function () {
+  ['relatorio', 'Relatorio', 'RELATÓRIO', 'relatório', ' Relatório! ', '/relatorio', 'Relatórios'].forEach(function (x) {
+    var r = cs(x, null);
+    assert.strictEqual(r.acao, 'abrir', x); assert.strictEqual(r.resto, '', x);
+    assert.strictEqual(r.ativoAte, AGORA + n.SESSAO_MINUTOS * MIN, x);
+  });
+});
+t('relatorio com comando já responde', function () {
+  var r = cs('Relatório semana ibotic', null);
+  assert.deepStrictEqual([r.acao, r.resto], ['abrir', 'semana ibotic']);
+});
+t('sem relatorio antes, o bot fica quieto', function () {
+  ['hoje', 'oi', 'tudo bem?', 'semana'].forEach(function (x) { assert.strictEqual(cs(x, null).acao, 'ignorar', x); });
+});
+t('conversa ligada responde e renova o prazo', function () {
+  var r = cs('semana', AGORA + 5 * MIN);
+  assert.deepStrictEqual([r.acao, r.resto, r.ativoAte], ['comando', 'semana', AGORA + n.SESSAO_MINUTOS * MIN]);
+});
+t('conversa vencida volta a ficar quieta', function () { assert.strictEqual(cs('hoje', AGORA - 1).acao, 'ignorar'); });
+t('sair desliga (maiúscula e minúscula)', function () {
+  ['sair', 'Sair', 'SAIR', 'sair.', '/sair'].forEach(function (x) {
+    assert.deepStrictEqual(cs(x, AGORA + MIN), { acao: 'sair', ativoAte: null }, x);
+  });
+});
+t('sair com a conversa desligada não responde', function () { assert.strictEqual(cs('sair', null).acao, 'ignorar'); });
+t('palavras parecidas não ligam nem desligam', function () {
+  assert.strictEqual(cs('relatoriozinho', null).acao, 'ignorar');
+  assert.strictEqual(cs('sairam 3 peças', AGORA + MIN).acao, 'comando');
+});
+t('em grupo a barra basta e sair é ignorado', function () {
+  assert.strictEqual(cs('/hoje', null, true).acao, 'comando');
+  assert.strictEqual(cs('/sair', null, true).acao, 'ignorar');
+  assert.strictEqual(cs('/relatorio', null, true).ativoAte > AGORA, true);
+});
+t('mensagens de ligar e sair', function () {
+  assert.ok(/Relatórios ativados/.test(n.responder({ tipo: 'ajuda', abertura: true })));
+  assert.ok(/sair/.test(n.responder({ tipo: 'ajuda' })));
+  assert.ok(/encerrados/.test(n.responder({ tipo: 'aviso', msg: n.textoSair() })));
+});
+
+// ---- painel de gráficos (foto) -------------------------------------------------
+t('sem gráfico para um dia só, ajuda, pendentes e erro', function () {
+  ['hoje', 'ontem', '13/11', 'ajuda', 'pendentes', '31/02'].forEach(function (c) {
+    assert.strictEqual(n.graficoRelatorio(cmd(c), dados), null, c);
+  });
+});
+t('sem gráfico quando não há lançamento no período', function () {
+  assert.strictEqual(n.graficoRelatorio(cmd('01/10 a 20/10'), dados), null);
+});
+t('gráfico da semana', function () {
+  var g = n.graficoRelatorio(cmd('semana'), dados);
+  assert.ok(g && g.largura === 1080 && g.altura > 1000 && g.altura < 2200, JSON.stringify(g && [g.largura, g.altura]));
+  assert.ok(g.html.indexOf('Semana 47') >= 0);
+  assert.ok(g.html.indexOf('Refugo por setor') >= 0 && g.html.indexOf('TAGLIABUE') >= 0);
+  assert.ok(g.html.indexOf('Pintura escorrida') >= 0);
+  assert.ok(/refugo 1,\d%/.test(g.legenda), g.legenda);
+});
+t('gráfico não carrega nada de fora nem roda script', function () {
+  var h = n.graficoRelatorio(cmd('mes'), dados).html.replace('xmlns="http://www.w3.org/2000/svg"', '');
+  assert.ok(!/<script|src=|href=|url\(|@import|https?:/i.test(h), 'achou referência externa');
+});
+t('gráfico do setor compara turnos', function () {
+  var g = n.graficoRelatorio(cmd('semana tagliabue'), dados);
+  assert.ok(g.html.indexOf('Refugo por turno') >= 0 && g.html.indexOf('Pintura · TAGLIABUE') >= 0);
+});
+t('gráfico de defeitos', function () {
+  assert.ok(n.graficoRelatorio(cmd('defeitos semana'), dados).html.indexOf('Defeitos') >= 0);
+});
+t('período longo agrupa por semana', function () {
+  var g = n.graficoRelatorio(cmd('01/10 a 17/11'), dados);
+  assert.ok(g.html.indexOf('por semana') >= 0 && g.html.indexOf('>S47<') >= 0);
+});
+t('gráfico só com pilhas não quebra', function () {
+  var g = n.graficoRelatorio(cmd('16/11 a 17/11 uv'), dados.filter(function (r) { return r.unidade === 'Pilha'; }));
+  assert.ok(g.html.indexOf('pilhas') >= 0 && !/NaN|undefined|Infinity/.test(g.html));
+});
+t('números do gráfico sempre válidos', function () {
+  ['semana', 'semana passada', 'mes', 'defeitos semana', 'semana ibotic', '12/11 a 17/11'].forEach(function (c) {
+    var g = n.graficoRelatorio(cmd(c), dados);
+    assert.ok(g && !/NaN|undefined|Infinity/.test(g.html), c);
+  });
+});
+t('escala redonda do eixo', function () {
+  assert.deepStrictEqual([n.teto(0), n.teto(7), n.teto(1900), n.teto(2300), n.teto(6400)], [1, 10, 2000, 2500, 10000]);
+});
+
 // ---- eventos do WAHA ---------------------------------------------------------
 var AUT = '5511987654321, 120363000000000001@g.us, 99887766@lid';
 function ev(payload, event) { return { event: event || 'message', session: 'default', payload: payload }; }

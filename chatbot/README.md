@@ -5,7 +5,8 @@ Quem estiver autorizado manda uma mensagem como **hoje**, **semana ibotic** ou *
 ```
 WhatsApp ──► WAHA ──(webhook + token)──► n8n ──(acao "listar" + CHAVE_CONTROLE)──► Apps Script ──► Google Sheets
    ▲                                      │
-   └──────────── WAHA /api/sendText ◄─────┘   (texto do relatório)
+   ├──────────── WAHA /api/sendText ◄─────┤   (texto do relatório)
+   └──────────── WAHA /api/sendImage ◄── Gotenberg (HTML → PNG)   (foto com gráficos, nos períodos)
 ```
 
 - **WAHA** é a ponte com o WhatsApp: o número do bot é ligado pelo QR code, como no WhatsApp Web.
@@ -34,8 +35,13 @@ Principais: Q73 Peça na cor errada (3)
 
 ## Comandos
 
+**Para começar, mande `relatorio`** (vale `Relatório`, `RELATORIO`, com ou sem acento). O bot responde com o menu e passa a atender aquela conversa. **Para encerrar, mande `sair`.** Ele também encerra sozinho depois de 30 minutos sem mensagens (`SESSAO_MINUTOS` no `nucleo.js`). Fora disso o bot fica em silêncio, então o número pode ser usado para conversar normalmente.
+
+Dá para ligar e pedir de uma vez: `relatorio semana ibotic`. O relatório automático das 07:00 não depende disso. Em grupo também não há liga/desliga: lá a barra (`/hoje`) já indica que a mensagem é para o bot.
+
 | Mensagem | Resposta |
 |---|---|
+| `relatorio` / `sair` | Liga / desliga o bot nesta conversa |
 | `hoje`, `ontem`, `semana`, `semana passada`, `mes`, `mes passado` | Resumo por setor: produção, peças ruins, refugo %, turnos lançados e principais defeitos |
 | `17/11` ou `17/11/2026` | Um dia específico |
 | `10/11 a 16/11` | Um período (até 92 dias) |
@@ -47,6 +53,19 @@ Principais: Q73 Peça na cor errada (3)
 - Maiúsculas e acentos não importam (`Mês`, `MES`, `mes`).
 - **Em grupo**, o bot só responde a mensagens que começam com barra (`/hoje`), para não reagir à conversa.
 - O refugo % segue a regra do formulário: só conta lançamentos com produção **em peças**. Produção em pilhas aparece separada.
+
+### Foto com gráficos
+
+Nos pedidos de **período** (`semana`, `semana passada`, `mes`, `10/11 a 16/11`, `defeitos semana`, `semana ibotic`...) o bot manda primeiro uma **foto com gráficos** e logo depois o texto de sempre. A foto tem:
+
+- cartões com produção, peças ruins, refugo % e número de lançamentos;
+- produção por dia (ou por semana, em períodos acima de 35 dias), com a linha do refugo %;
+- refugo por setor (ou Dia × Noite, quando o pedido é de um setor);
+- os 6 principais defeitos.
+
+`hoje`, `ontem`, um dia só e `pendentes` continuam só em texto. O relatório automático de segunda (semana passada) também vai com a foto.
+
+Quem desenha a foto é o **Gotenberg**, um terceiro serviço do `docker-compose.yml`. O n8n monta uma página só com SVG (sem JavaScript e sem nada de fora) e o Gotenberg devolve o PNG. Ele não tem porta aberta, roda com JavaScript desligado e não acessa nenhum endereço, então os números não saem da máquina. Se ele falhar, o texto vai assim mesmo.
 
 ---
 
@@ -163,12 +182,14 @@ Cuidados que continuam:
 
 ### Problemas comuns
 
+- **Bot não responde, mas aparece execução que para no nó Interpretar:** a conversa não está ligada. Mande `relatorio` primeiro (ou ela encerrou sozinha depois de 30 minutos parada).
 - **Bot não responde e não aparece execução no n8n:** a sessão do WAHA não está `WORKING`, ou o workflow não está publicado.
 - **Execução com erro "Webhook recusado":** o `BUYOFF_WEBHOOK_TOKEN` do WAHA e do n8n estão diferentes. Rode `docker compose up -d` para os dois pegarem o mesmo `.env`.
 - **Execução termina no nó Interpretar sem responder:** o remetente não está autorizado. Em alguns aparelhos o WhatsApp manda um id `…@lid` em vez do número. Copie o `from` (ou `participant`, em grupo) do nó **WAHA: mensagem recebida** e acrescente esse id em `BUYOFF_AUTORIZADOS`.
 - **"A chave de controle do chatbot está errada":** confira `BUYOFF_CHAVE_CONTROLE` com `mostrarChaves` no Apps Script.
 - **"Não consegui ler a planilha agora":** veja o nó **Buscar lançamentos (planilha)** na execução. Normalmente é a URL errada ou o Google lento (o n8n já tenta 3 vezes).
 - **Não consigo fazer login no n8n acessando pelo IP da máquina:** o n8n exige HTTPS fora do `localhost`. Use o túnel SSH da tabela de segurança.
+- **Veio o texto mas não a foto:** abra a execução e veja os nós **Desenhar gráfico (Gotenberg)** e **Enviar foto (WAHA)**. Confira se o Gotenberg está rodando (`docker compose ps`) e veja `docker compose logs gotenberg`.
 - **Relatório não mostra lançamentos antigos:** a ação `listar` devolve as últimas 2.000 linhas da planilha (no ritmo do piloto, mais de 6 meses).
 
 ## Desenvolvimento
@@ -187,7 +208,7 @@ Os testes usam lançamentos fictícios (`test/dados-exemplo.js`) e conferem os c
 
 | Arquivo | O que é |
 |---|---|
-| `docker-compose.yml` | n8n + WAHA |
+| `docker-compose.yml` | n8n + WAHA + Gotenberg (desenha a foto dos gráficos) |
 | `.env.example` | Modelo da configuração (copie para `.env`) |
 | `src/nucleo.js` | Interpretação dos comandos e montagem dos relatórios |
 | `build-workflow.js` | Gera o workflow do n8n a partir do núcleo |

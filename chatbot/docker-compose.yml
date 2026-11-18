@@ -40,6 +40,25 @@ services:
       - ./workflows:/workflows:ro
     depends_on:
       - waha
+      - gotenberg
+
+  gotenberg:
+    # Transforma o painel de gráficos (HTML montado pelo n8n) numa foto PNG.
+    # Sem porta aberta: só o n8n fala com ele, pela rede interna do Docker.
+    # JavaScript desligado e sem acesso a nenhum endereço (internet ou rede interna):
+    # ele só desenha a página que recebe, e os números não saem da máquina.
+    image: gotenberg/gotenberg:8.39.0-chromium
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --chromium-disable-javascript=true
+      - --chromium-deny-public-ips=true
+      - --chromium-deny-private-ips=true
+      - --api-disable-download-from=true
+      - --webhook-disable=true
+      - --prometheus-disable-collect=true
+      - --api-timeout=60s
+      - --log-level=warn
 
   waha:
     # Engine GOWS: não precisa de navegador, usa pouca memória.
