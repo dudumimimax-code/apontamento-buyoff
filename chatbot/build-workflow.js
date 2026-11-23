@@ -35,20 +35,18 @@ var interpretar = AVISO + nucleo + '\n\n' + [
   '    return [];',
   '  }',
   '',
-  '  // "relatorio" liga a conversa, "sair" desliga. Fica guardado no próprio workflow (static data).',
+  '  // "relatorio" abre o menu, o número escolhe o relatório e depois vem o menu de setores; "sair" encerra.',
+  '  // A etapa de cada conversa fica guardada no próprio workflow (static data).',
   '  const st = $getWorkflowStaticData("global");',
   '  const sessoes = st.sessoes || (st.sessoes = {});',
   '  const agora = Date.now();',
-  '  for (const k of Object.keys(sessoes)) if (!(sessoes[k] > agora)) delete sessoes[k];',
+  '  const ate = v => (typeof v === "number" ? v : (v && v.ate) || 0);',
+  '  for (const k of Object.keys(sessoes)) if (!(ate(sessoes[k]) > agora)) delete sessoes[k];',
   '  const grupo = /@g\\.us$/.test(m.chatId);',
-  '  const ctl = controleSessao(m.texto, sessoes[m.chatId], agora, grupo);',
-  '  if (!grupo) { if (ctl.ativoAte) sessoes[m.chatId] = ctl.ativoAte; else delete sessoes[m.chatId]; }',
-  '  if (ctl.acao === "ignorar") return [];',
-  '  let cmd;',
-  '  if (ctl.acao === "sair") cmd = { tipo: "aviso", msg: textoSair() };',
-  '  else if (ctl.acao === "abrir" && !ctl.resto) cmd = { tipo: "ajuda", abertura: true };',
-  '  else cmd = interpretar(ctl.resto, hoje);',
-  '  return [{ json: { chatId: m.chatId, replyTo: m.msgId, session: sessao, agendado: false, cmd } }];',
+  '  const passo = conversa(m.texto, sessoes[m.chatId], agora, hoje, grupo);',
+  '  if (!grupo) { if (passo.estado) sessoes[m.chatId] = passo.estado; else delete sessoes[m.chatId]; }',
+  '  if (!passo.cmd) return [];',
+  '  return [{ json: { chatId: m.chatId, replyTo: m.msgId, session: sessao, agendado: false, cmd: passo.cmd } }];',
   '}',
   '',
   '// Disparo agendado: relatório de ontem para cada destino (e o da semana passada às segundas).',
@@ -63,8 +61,12 @@ var interpretar = AVISO + nucleo + '\n\n' + [
   'return itens;'
 ].join('\n');
 
+// Respostas que não precisam dos dados da planilha (o menu responde na hora).
+var SEM_PLANILHA = ['menu', 'menuSetor', 'ajuda', 'erro', 'aviso'];
+
 var montar = AVISO + nucleo + '\n\n' + [
   '// ===================== nó: Montar resposta =====================',
+  'const SEM_PLANILHA = ' + JSON.stringify(SEM_PLANILHA) + ';',
   'const res = $input.first().json || {};',
   'const hoje = hojeISO();',
   'let regs = null, erro = null;',
@@ -76,7 +78,7 @@ var montar = AVISO + nucleo + '\n\n' + [
   'for (const it of $("Interpretar").all()) {',
   '  const c = it.json;',
   '  const base = { session: c.session, chatId: c.chatId, replyTo: c.replyTo || null };',
-  '  const precisaDados = c.cmd.tipo !== "ajuda" && c.cmd.tipo !== "erro" && c.cmd.tipo !== "aviso";',
+  '  const precisaDados = SEM_PLANILHA.indexOf(c.cmd.tipo) < 0;',
   '  if (precisaDados && erro) {',
   '    if (c.agendado) throw new Error("Relatório agendado não enviado: " + erro + " Resposta: " + JSON.stringify(res).slice(0, 300));',
   '    saida.push({ json: Object.assign(base, { text: "⚠️ " + erro }) });',
@@ -124,7 +126,18 @@ var nodes = [
     jsCode: interpretar
   }),
 
-  no('b0f4a3c2-0005-4e6a-9a51-000000000005', 'Buscar lançamentos (planilha)', 'n8n-nodes-base.httpRequest', 4.2, [720, 100], {
+  // Menus não esperam o Google: vão direto para a resposta.
+  no('b0f4a3c2-0012-4e6a-9a51-000000000012', 'Precisa da planilha?', 'n8n-nodes-base.if', 2.2, [720, 100], {
+    conditions: {
+      options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+      conditions: [{ id: 'p1', leftValue: '={{ ' + JSON.stringify(SEM_PLANILHA) + '.indexOf($json.cmd.tipo) < 0 }}', rightValue: '',
+        operator: { type: 'boolean', operation: 'true', singleValue: true } }],
+      combinator: 'and'
+    },
+    options: {}
+  }),
+
+  no('b0f4a3c2-0005-4e6a-9a51-000000000005', 'Buscar lançamentos (planilha)', 'n8n-nodes-base.httpRequest', 4.2, [960, 0], {
     method: 'POST',
     url: '={{ $env.BUYOFF_APPS_SCRIPT_URL }}',
     sendBody: true,
@@ -134,12 +147,12 @@ var nodes = [
     options: { timeout: 60000, response: { response: { responseFormat: 'json' } } }
   }, { executeOnce: true, retryOnFail: true, maxTries: 3, waitBetweenTries: 3000, onError: 'continueRegularOutput' }),
 
-  no('b0f4a3c2-0006-4e6a-9a51-000000000006', 'Montar resposta', 'n8n-nodes-base.code', 2, [960, 100], {
+  no('b0f4a3c2-0006-4e6a-9a51-000000000006', 'Montar resposta', 'n8n-nodes-base.code', 2, [1200, 100], {
     jsCode: montar
   }),
 
   // Relatório de período: foto com gráficos antes do texto. Se a foto falhar, o texto vai assim mesmo.
-  no('b0f4a3c2-0008-4e6a-9a51-000000000008', 'Tem gráfico?', 'n8n-nodes-base.if', 2.2, [1200, 100], {
+  no('b0f4a3c2-0008-4e6a-9a51-000000000008', 'Tem gráfico?', 'n8n-nodes-base.if', 2.2, [1440, 100], {
     conditions: {
       options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
       conditions: [{ id: 'g1', leftValue: '={{ $json.temGrafico }}', rightValue: '',
@@ -149,7 +162,7 @@ var nodes = [
     options: {}
   }),
 
-  no('b0f4a3c2-0009-4e6a-9a51-000000000009', 'Desenhar gráfico (Gotenberg)', 'n8n-nodes-base.httpRequest', 4.2, [1440, 0], {
+  no('b0f4a3c2-0009-4e6a-9a51-000000000009', 'Desenhar gráfico (Gotenberg)', 'n8n-nodes-base.httpRequest', 4.2, [1680, 0], {
     method: 'POST',
     url: "={{ ($env.GOTENBERG_URL || 'http://gotenberg:3000') + '/forms/chromium/screenshot/html' }}",
     sendBody: true,
@@ -163,14 +176,14 @@ var nodes = [
     options: { timeout: 60000, response: { response: { responseFormat: 'file', outputPropertyName: 'foto' } } }
   }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 2000, onError: 'continueRegularOutput' }),
 
-  no('b0f4a3c2-0010-4e6a-9a51-000000000010', 'Foto em base64', 'n8n-nodes-base.extractFromFile', 1, [1680, 0], {
+  no('b0f4a3c2-0010-4e6a-9a51-000000000010', 'Foto em base64', 'n8n-nodes-base.extractFromFile', 1, [1920, 0], {
     operation: 'binaryToPropery',
     binaryPropertyName: 'foto',
     destinationKey: 'foto64',
     options: {}
   }, { onError: 'continueRegularOutput' }),
 
-  no('b0f4a3c2-0011-4e6a-9a51-000000000011', 'Enviar foto (WAHA)', 'n8n-nodes-base.httpRequest', 4.2, [1920, 0], {
+  no('b0f4a3c2-0011-4e6a-9a51-000000000011', 'Enviar foto (WAHA)', 'n8n-nodes-base.httpRequest', 4.2, [2160, 0], {
     method: 'POST',
     url: "={{ ($env.WAHA_URL || 'http://waha:3000') + '/api/sendImage' }}",
     sendHeaders: true,
@@ -185,7 +198,7 @@ var nodes = [
     options: { timeout: 60000 }
   }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 2000, onError: 'continueRegularOutput' }),
 
-  no('b0f4a3c2-0007-4e6a-9a51-000000000007', 'Enviar no WhatsApp (WAHA)', 'n8n-nodes-base.httpRequest', 4.2, [2160, 120], {
+  no('b0f4a3c2-0007-4e6a-9a51-000000000007', 'Enviar no WhatsApp (WAHA)', 'n8n-nodes-base.httpRequest', 4.2, [2400, 120], {
     method: 'POST',
     url: "={{ ($env.WAHA_URL || 'http://waha:3000') + '/api/sendText' }}",
     sendHeaders: true,
@@ -207,7 +220,8 @@ var connections = {
   'WAHA: mensagem recebida': { main: [liga(0, 'Config')] },
   'Todo dia 07:00': { main: [liga(0, 'Config')] },
   'Config': { main: [liga(0, 'Interpretar')] },
-  'Interpretar': { main: [liga(0, 'Buscar lançamentos (planilha)')] },
+  'Interpretar': { main: [liga(0, 'Precisa da planilha?')] },
+  'Precisa da planilha?': { main: [liga(0, 'Buscar lançamentos (planilha)'), liga(0, 'Montar resposta')] },
   'Buscar lançamentos (planilha)': { main: [liga(0, 'Montar resposta')] },
   'Montar resposta': { main: [liga(0, 'Tem gráfico?')] },
   'Tem gráfico?': { main: [liga(0, 'Desenhar gráfico (Gotenberg)'), liga(0, 'Enviar no WhatsApp (WAHA)')] },

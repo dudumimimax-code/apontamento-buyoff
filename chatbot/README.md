@@ -1,6 +1,6 @@
 # Chatbot de relatórios no WhatsApp (n8n + WAHA)
 
-Quem estiver autorizado manda uma mensagem como **hoje**, **semana ibotic** ou **defeitos ontem** para o número do bot, e recebe o relatório do Buy Off na hora. Todo dia às 07:00 o bot também manda o relatório de ontem para o grupo da produção (e o da semana passada às segundas).
+Quem estiver autorizado manda **relatorio** para o número do bot, escolhe no menu o relatório e o(s) setor(es) e recebe o relatório do Buy Off na hora. Todo dia às 07:00 o bot também manda o relatório de ontem para o grupo da produção (e o da semana passada às segundas).
 
 ```
 WhatsApp ──► WAHA ──(webhook + token)──► n8n ──(acao "listar" + CHAVE_CONTROLE)──► Apps Script ──► Google Sheets
@@ -13,55 +13,84 @@ WhatsApp ──► WAHA ──(webhook + token)──► n8n ──(acao "listar
 - **n8n** recebe a mensagem, busca os lançamentos e monta o relatório.
 - Os dados vêm da **mesma ação `listar`** que a aba Controle do formulário usa. Não precisa mudar o `Code.gs` nem dar acesso à planilha.
 
-## Exemplo de resposta
+## Como funciona a conversa
 
 ```
-📊 Buy Off · Pintura
-Ontem · seg 16/11/2026
+Você:  relatorio
 
-Total: 5.100 pç · 51 ruins · refugo 1,0%
-10 lançamentos
+Bot:   📊 Buy Off · Pintura
+       Escolha o relatório:
 
-TAGLIABUE · refugo 1,5%
-1.900 pç · 29 ruins · Dia ✓ Noite ✓
-Principais: Q72 Pintura escorrida (20) · Q1 Peça batida (9)
+       1️⃣ Hoje
+       2️⃣ Ontem
+       3️⃣ Esta semana
+       4️⃣ Semana passada
+       5️⃣ Este mês
+       6️⃣ Defeitos da semana
+       7️⃣ Quem ainda não lançou hoje
 
-IBOTIC · refugo 0,2%
-1.350 pç · 3 ruins · Dia ✓ Noite ✓
-Principais: Q73 Peça na cor errada (3)
-...
-⚠️ Sem lançamento: POLIMENTO (Noite)
+       Responda com o número · sair para encerrar
+
+Você:  3
+
+Bot:   🏭 Qual setor? · Esta semana
+
+       0️⃣ Todos
+       1️⃣ Tagliabue   2️⃣ IBOTIC   3️⃣ Polimento
+       4️⃣ Madeirado UV   5️⃣ Madeirado Colorido
+
+       Pode escolher vários: 1 3 ou 1,3
+
+Você:  2 3
+
+Bot:   (foto com gráficos)
+       📊 Buy Off · Pintura · IBOTIC, POLIMENTO
+       Semana 47 · 16/11 a 22/11/2026
+
+       Total: 24 peças ruins · 5 lançamentos
+
+       IBOTIC
+       15 peças ruins · 3 lançamentos
+       Principais: Q81 Pintura com impureza (10) · Q73 Peça na cor errada (3)
+
+       POLIMENTO
+       9 peças ruins · 2 lançamentos
+       Principais: Q74 Peça fora de tonalidade (6) · Q79 Pintura manchada (2)
+
+       menu para outro relatório · sair para encerrar
 ```
 
-## Comandos
+- **`relatorio`** abre o menu (vale `Relatório`, `RELATORIO`, com ou sem acento). Fora disso o bot fica em silêncio, então o número pode ser usado para conversar normalmente.
+- **Setores:** `0` = todos; um número = relatório detalhado do setor (por turno e por dia); vários números (`1 3`, `1,3`, `1 e 3`) = só esses setores. Também dá para escrever o nome (`ibotic e polimento`).
+- **`menu`** volta ao menu a qualquer momento. **`sair`** encerra; ele também encerra sozinho depois de 30 minutos sem mensagens (`SESSAO_MINUTOS` no `nucleo.js`).
+- O menu responde na hora: o bot só consulta a planilha quando vai montar o relatório.
+- Os relatórios mostram **peças ruins e número de lançamentos** por setor, os principais defeitos e quem ainda não lançou. Produção e refugo % ficam de fora do texto.
 
-**Para começar, mande `relatorio`** (vale `Relatório`, `RELATORIO`, com ou sem acento). O bot responde com o menu e passa a atender aquela conversa. **Para encerrar, mande `sair`.** Ele também encerra sozinho depois de 30 minutos sem mensagens (`SESSAO_MINUTOS` no `nucleo.js`). Fora disso o bot fica em silêncio, então o número pode ser usado para conversar normalmente.
+### Comandos escritos (atalhos)
 
-Dá para ligar e pedir de uma vez: `relatorio semana ibotic`. O relatório automático das 07:00 não depende disso. Em grupo também não há liga/desliga: lá a barra (`/hoje`) já indica que a mensagem é para o bot.
+Quem já conhece pode pular o menu e escrever o pedido direto, com a conversa aberta ou junto com o `relatorio` (`relatorio semana ibotic`). Em **grupo** não há menu: valem estes comandos começando com barra (`/hoje`), para o bot não reagir à conversa.
 
 | Mensagem | Resposta |
 |---|---|
-| `relatorio` / `sair` | Liga / desliga o bot nesta conversa |
-| `hoje`, `ontem`, `semana`, `semana passada`, `mes`, `mes passado` | Resumo por setor: produção, peças ruins, refugo %, turnos lançados e principais defeitos |
+| `hoje`, `ontem`, `semana`, `semana passada`, `mes`, `mes passado` | Resumo de todos os setores |
 | `17/11` ou `17/11/2026` | Um dia específico |
 | `10/11 a 16/11` | Um período (até 92 dias) |
-| `hoje ibotic`, `semana polimento`, `ontem uv`, `mes colorido`, `hoje tagliabue` | Detalhe do setor: por turno, top 5 defeitos e, em períodos, por dia |
+| `semana ibotic`, `ontem uv`, `mes polimento colorido` | Um ou mais setores |
 | `defeitos semana` (ou `defeitos ontem ibotic`...) | Ranking dos códigos Q com % das peças ruins |
 | `pendentes` (ou `pendentes ontem`) | Setor/turno que ainda não lançou |
-| `ajuda` | Lista de comandos |
 
-- Maiúsculas e acentos não importam (`Mês`, `MES`, `mes`).
-- **Em grupo**, o bot só responde a mensagens que começam com barra (`/hoje`), para não reagir à conversa.
-- O refugo % segue a regra do formulário: só conta lançamentos com produção **em peças**. Produção em pilhas aparece separada.
+Maiúsculas e acentos não importam (`Mês`, `MES`, `mes`).
 
 ### Foto com gráficos
 
 Nos pedidos de **período** (`semana`, `semana passada`, `mes`, `10/11 a 16/11`, `defeitos semana`, `semana ibotic`...) o bot manda primeiro uma **foto com gráficos** e logo depois o texto de sempre. A foto tem:
 
-- cartões com produção, peças ruins, refugo % e número de lançamentos;
-- produção por dia (ou por semana, em períodos acima de 35 dias), com a linha do refugo %;
-- refugo por setor (ou Dia × Noite, quando o pedido é de um setor);
+- cartões com produção, peças ruins e número de lançamentos;
+- produção por dia (ou por semana, em períodos acima de 35 dias);
+- peças ruins por setor (ou Dia × Noite, quando o pedido é de um setor só), com o número de lançamentos;
 - os 6 principais defeitos.
+
+**Produção em pilhas:** quase todos os setores lançam a produção em pilhas, então o cartão e o gráfico de produção contam em **pilhas**. Lançamentos em peças (hoje só a IBOTIC) aparecem ao lado, no cartão ("+ 2.150 peças"), porque pilha e peça não se somam. Num relatório só da IBOTIC, a produção aparece em peças.
 
 `hoje`, `ontem`, um dia só e `pendentes` continuam só em texto. O relatório automático de segunda (semana passada) também vai com a foto.
 
@@ -129,14 +158,14 @@ Depois abra <http://localhost:5678> e crie a conta de dono do n8n (fica só nest
 
 ## Passo 5 · Testar
 
-1. De um número autorizado, mande **ajuda** para o número do bot. Ele responde a lista de comandos.
-2. Mande **hoje**. Deve chegar o resumo do dia.
+1. De um número autorizado, mande **relatorio** para o número do bot. Ele responde com o menu.
+2. Mande **1** e depois **0**. Deve chegar o resumo de hoje de todos os setores.
 3. Se não responder, veja **Executions** no n8n (dica: o nó **WAHA: mensagem recebida** mostra exatamente o que o WAHA mandou).
 
 **Relatório automático no grupo:**
 
 1. Adicione o número do bot ao grupo da produção.
-2. Mande qualquer `/ajuda` no grupo. Em **Executions**, abra a execução e copie o `from` do nó **WAHA: mensagem recebida** (algo como `120363...@g.us`).
+2. Mande `/ajuda` no grupo. Em **Executions**, abra a execução e copie o `from` do nó **WAHA: mensagem recebida** (algo como `120363...@g.us`).
 3. Ponha esse id em `BUYOFF_DESTINOS_AGENDADOS` (e em `BUYOFF_AUTORIZADOS`, se quiser que todos do grupo possam pedir com `/`).
 4. Aplique a mudança:
 

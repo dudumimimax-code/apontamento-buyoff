@@ -116,7 +116,7 @@ Os códigos de defeito ficam em ordem numérica crescente, na mesma ordem no `ap
 
 ## Relatórios pelo WhatsApp (opcional)
 
-A pasta [`chatbot/`](chatbot/README.md) tem um chatbot (n8n + WAHA em Docker) que responde no WhatsApp a mensagens como `hoje`, `semana ibotic` ou `defeitos ontem`, e manda o relatório de ontem todo dia às 07:00 para o grupo da produção. Ele lê os dados pela mesma ação `listar` da aba Controle (com a `CHAVE_CONTROLE`), então não precisa mudar o `Code.gs`.
+A pasta [`chatbot/`](chatbot/README.md) tem um chatbot (n8n + WAHA em Docker) em que a pessoa manda `relatorio` no WhatsApp, escolhe o relatório e os setores num menu numerado e recebe o resumo (com foto de gráficos nos períodos). Ele também manda o relatório de ontem todo dia às 07:00 para o grupo da produção. Ele lê os dados pela mesma ação `listar` da aba Controle (com a `CHAVE_CONTROLE`), então não precisa mudar o `Code.gs`.
 
 ---
 
